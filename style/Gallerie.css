@@ -1,0 +1,37 @@
+#gallerie-bild{
+    height: 400px;
+    border-radius: 20px;
+    margin: 10px;
+    
+}
+
+#gallerie-div {
+    display: flex;
+    align-content: center;
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: space-evenly;
+}
+
+div a video{
+    height: 500px;
+    border-radius: 20px;
+    
+}
+
+footer {
+    width: 100%;
+background: #2D3027;
+    background: linear-gradient(180deg, rgba(45, 48, 39, 1) 0%, rgba(45, 61, 48, 1) 100%);    padding: 10px 0;
+    border-radius: 20px;
+}
+
+footer p {
+    text-align: center;
+    color: white;
+}
+
+footer a {
+    text-decoration: none;
+    color: white;
+}
