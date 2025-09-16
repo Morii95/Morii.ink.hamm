@@ -89,10 +89,10 @@ background: #2D3027;
                 text-align: center;
                 color: black;
             }
+            a {
+                text-decoration: none;
+                color: white;
+            }
 }
 
 
-#footer-text a {
-    text-decoration: none;
-    color: white;
-}
