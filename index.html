@@ -88,19 +88,22 @@ Komm vorbei und überzeug dich selbst – ich freue mich, dich bald im Studio be
 </footer>
 
 <script>
-    let sidebarActivated = false;
+let sidebarActivated = false;
 
 function activateSidebar() {
     sidebarActivated = true;
 }
-    function showSidebar(){
-        const sidebar = document.querySelector('.sidebar');
-        sidebar.style.display = 'flex'
-    }
 
-function hideSidebar(){
+function showSidebar() {
+    if (sidebarActivated) {
+        const sidebar = document.querySelector('.sidebar');
+        sidebar.style.display = 'flex';
+    }
+}
+
+function hideSidebar() {
     const sidebar = document.querySelector('.sidebar');
-    sidebar.style.display = 'none'
+    sidebar.style.display = 'none';
 }
 </script>
 </body>
