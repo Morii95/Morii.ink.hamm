@@ -71,21 +71,3 @@ a:hover{
     height: 100px;
 }
 
-
-#footer-text{
-    display: grid;
-    justify-content: center;
-    background: #2D3027;
-    background: linear-gradient(180deg, rgba(45, 48, 39, 1) 0%, rgba(45, 61, 48, 1) 100%);            padding: 10px 0 ;
-            border-radius: 20px;
-            p{
-                font-size: 15px;
-                width: 90%;
-                text-align: center;
-                color: black;
-            }
-            a {
-                text-decoration: none;
-                color: white;
-            }
-}
