@@ -12,6 +12,13 @@ body{
     margin: 0;
     padding: 0;
     overflow: hidden;
+
+        div{
+            background: transparent;
+
+            :active{
+                background-color: transparent;}
+        }
 }
 
 #nav-leiste-bild{
@@ -59,37 +66,53 @@ div ul li div{
 }
     
 
-div div{
+div {
+    #spacing{
+        height: 100px;
+    }
+
+    div{
     background: transparent;
     border-radius: 20px;
     display: flex;
     align-content: center;
-     p{
-        color: white;
-        padding-right: 100px;
-        font-family: 'Franklin Gothic Medium', 'Arial Narrow', Arial, sans-serif;
-        font-size: 23px;
-        text-align: center;
-        align-content: center;
-        
-    }
+}
+p{
+   width: 50%;
+   color: #969971;
+   font-family: 'Franklin Gothic Medium', 'Arial Narrow', Arial, sans-serif;
+   font-size: 23px;
+   text-align: center;
+   align-content: center;
+}
     img{
         display: block;
     }
     
     h1{
-        text-align: center;
+        display: flex;
+        justify-content: center;
         color: white;
     }
+
+    div{
+        background: transparent;
+        border-radius: 20px;
+        display: flex;
+        justify-content: center;}
 }
 
 
 
 #footer-text{
-background: #2D3027;
+    display: grid;
+    justify-content: center;
+    background: #2D3027;
     background: linear-gradient(180deg, rgba(45, 48, 39, 1) 0%, rgba(45, 61, 48, 1) 100%);            padding: 10px 0 ;
             border-radius: 20px;
-            p  {
+            p{
+                font-size: 15px;
+                width: 90%;
                 text-align: center;
                 color: black;
             }
