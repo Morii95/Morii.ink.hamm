@@ -30,3 +30,10 @@ footer a {
     text-decoration: none;
     color: white;
 }
+@media (max-width: 400px) {
+    #gallerie-bild{
+        height: auto;
+        width: 100%;
+        margin: 20px 0 20px 0;
+    }
+}

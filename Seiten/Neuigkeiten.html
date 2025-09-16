@@ -93,16 +93,22 @@ Cal("init", "beratungsgesprach", {origin:"https://app.cal.com"});
   <p>© 2025 MORI INK – Alle Rechte vorbehalten.</p>
   </div>
 
-  <script>
+<script>
+    // Sidebar beim Laden der Seite verstecken
+    window.onload = function() {
+        const sidebar = document.querySelector('.sidebar');
+        if (sidebar) sidebar.style.display = 'none';
+    };
+
     function showSidebar(){
         const sidebar = document.querySelector('.sidebar');
-        sidebar.style.display = 'flex'
+        sidebar.style.display = 'flex';
     }
 
-function hideSidebar(){
-    const sidebar = document.querySelector('.sidebar');
-    sidebar.style.display = 'none'
-}
+    function hideSidebar(){
+        const sidebar = document.querySelector('.sidebar');
+        sidebar.style.display = 'none';
+    }
 </script>
 </footer>
 </body>
