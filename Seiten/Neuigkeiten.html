@@ -20,17 +20,32 @@ Cal("init", "beratungsgesprach", {origin:"https://app.cal.com"});
     <header>
          <nav id="nav-bar">
 
+                <div>
+                
+                <ul id="nav-bar-li" class="sidebar">
+                    
+                    <li onclick=hideSidebar()><a href="#"><svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#e3e3e3"><path d="m256-200-56-56 224-224-224-224 56-56 224 224 224-224 56 56-224 224 224 224-56 56-224-224-224 224Z"/></svg></a></li>
+                    <li><a id="link-button" href="/index.html">Home</a></li>
+                    <li><a id="link-button" href="/Seiten/gallerie.html">Gallerie</a></li>
+                    <li><a id="link-button" href="/Seiten/Neuigkeiten.html">Neuigkeiten</a></li>
+                    </li>
+                </ul>
+            </div>
+
+            
+
             <div>
+                
                 <ul id="nav-bar-li">
                     
-                    <li><a id="link-button" href="/Seiten/Neuigkeiten.html">Neuigkeiten</a></li>
-                    <li><a id="link-button" href="/Seiten/gallerie.html">Gallerie</a></li>
-                    <li><a id="link-button" href="/index.html">Home</a></li>
-                    <li  style="float: left;padding: 5px;">
-                        <div style="background: transparent;">
+                    <li class="menu-button" onclick=showSidebar()><a id="link-button" href="#"><svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#e3e3e3"><path d="M120-240v-80h720v80H120Zm0-200v-80h720v80H120Zm0-200v-80h720v80H120Z"/></svg></a></li>
+                    <li class="hideOnMobile"><a id="link-button" href="/Seiten/Neuigkeiten.html">Neuigkeiten</a></li>
+                    <li class="hideOnMobile"><a id="link-button" href="/Seiten/gallerie.html">Gallerie</a></li>
+                    <li class="hideOnMobile"><a id="link-button" href="/index.html">Home</a></li>
+                    <li class="hideOnSmall" style="float: left;padding: 5px;">
+                        <div>
                             <a href="/index.html"><img id="nav-leiste-bild" style="height: 100px" src="/Bilder/mori-white.png" alt=""></a>
                         </div>
-                    </li>
                     </li>
                 </ul>
             </div>
@@ -77,6 +92,18 @@ Cal("init", "beratungsgesprach", {origin:"https://app.cal.com"});
   <p>Mobil: <a href="tel:+491735979520">0173 5979520</a></p>
   <p>© 2025 MORI INK – Alle Rechte vorbehalten.</p>
   </div>
+
+  <script>
+    function showSidebar(){
+        const sidebar = document.querySelector('.sidebar');
+        sidebar.style.display = 'flex'
+    }
+
+function hideSidebar(){
+    const sidebar = document.querySelector('.sidebar');
+    sidebar.style.display = 'none'
+}
+</script>
 </footer>
 </body>
 </html>
