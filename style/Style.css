@@ -1,5 +1,5 @@
 body{
-    background-color: #2d3027           ;
+    background-color: white;
 }
 
 #logo{
@@ -12,6 +12,9 @@ body{
     margin: 0;
     padding: 0;
     overflow: hidden;
+    display: flex;
+    justify-content: space-evenly;
+    align-items: center;
 
         div{
             background: transparent;
@@ -21,8 +24,10 @@ body{
         }
 }
 
-#nav-leiste-bild{
-    height:100px;
+.nav-bg{
+    background: #2D3027;
+    background: linear-gradient(180deg, rgba(45, 48, 39, 1) 0%, rgba(45, 61, 48, 1) 100%);
+    border-radius: 20px;
 }
 
 ul{
@@ -32,9 +37,6 @@ ul{
 #link-button{
     float: right;
     margin-top: 39px;
-}
-
-ul li a {
     border-radius: 8px;
     display: block;
     color: white;
@@ -45,6 +47,7 @@ ul li a {
     font-family: 'Franklin Gothic Medium', 'Arial Narrow', Arial, sans-serif;
 }
 
+
 ul li div a{
     padding: 0;
 }
@@ -53,10 +56,6 @@ ul li a:active{
         background-color: white;
         color: #2d3027;
     }
-
-div ul li div{
-    background-color: white;
-}
 
 #website-bilder{
     border-radius: 12px;
