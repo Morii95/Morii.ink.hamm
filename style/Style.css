@@ -14,6 +14,10 @@ body{
     overflow: hidden;
 }
 
+#nav-leiste-bild(
+    height:100px;
+)
+
 ul{
     position: sticky;
 }
