@@ -1,0 +1,303 @@
+:root {
+    --bg-dark: #050505;
+    --bg-card: #121212;
+    --gold: #d4af37;
+    --gold-hover: #b5952f;
+    --text-main: #ffffff;
+    --text-muted: #a1a1a1;
+    --font-heading: 'Cinzel', serif;
+    --font-body: 'Lato', sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+body {
+    background-color: var(--bg-dark);
+    color: var(--text-main);
+    font-family: var(--font-body);
+    margin: 0;
+    line-height: 1.6;
+    scroll-behavior: smooth;
+}
+
+/* --- HEADER & NAV --- */
+header {
+    position: fixed;
+    top: 0;
+    width: 100%;
+    background: rgba(5, 5, 5, 0.95);
+    padding: 10px 0;
+    z-index: 1000;
+    border-bottom: 1px solid rgba(212, 175, 55, 0.1);
+}
+
+nav {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 0 30px;
+}
+
+.nav-links {
+    list-style: none;
+    display: flex;
+    gap: 30px;
+    padding: 0;
+    flex: 1; /* Wichtig für Zentrierung */
+}
+
+/* Links linksbündig, Rechts rechtsbündig */
+.nav-links.left { justify-content: flex-start; }
+.nav-links.right { justify-content: flex-end; align-items: center;}
+
+.nav-links a {
+    color: var(--text-main);
+    text-decoration: none;
+    text-transform: uppercase;
+    font-size: 0.85rem;
+    letter-spacing: 1px;
+    transition: color 0.3s;
+}
+
+.nav-links a:hover { color: var(--gold); }
+
+/* Logo zentriert */
+.logo-container {
+    flex: 0 0 auto; /* Nimmt nur so viel Platz wie nötig */
+    padding: 0 20px;
+    display: flex;
+    justify-content: center;
+}
+
+.nav-logo {
+    height: 100px; /* Größer wie gewünscht */
+    width: auto;
+    object-fit: contain;
+    transition: transform 0.3s;
+}
+.nav-logo:hover { transform: scale(1.05); }
+
+/* Buttons */
+.btn-gold {
+    background-color: var(--gold);
+    color: black;
+    padding: 10px 25px;
+    text-decoration: none;
+    font-weight: bold;
+    border-radius: 2px;
+    text-transform: uppercase;
+    font-size: 0.8rem;
+    transition: background 0.3s;
+}
+.btn-gold:hover { background-color: var(--gold-hover); }
+
+.btn-outline {
+    border: 1px solid var(--text-main);
+    color: var(--text-main);
+    padding: 10px 25px;
+    text-decoration: none;
+    text-transform: uppercase;
+    font-size: 0.8rem;
+    margin-left: 10px;
+}
+
+/* --- HERO SECTION --- */
+.hero {
+    height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    position: relative;
+    /* Hier optional ein Hintergrundbild einfügen */
+    background: linear-gradient(to bottom, #000000cc, #050505), url('assets/d563ae74-4c27-47ce-9aa0-fae8539775c4.jpg');
+    background-size: cover;
+    background-position: center;
+}
+
+.hero-content { position: relative; z-index: 2; padding: 20px;}
+
+.hero h1 {
+    font-family: var(--font-heading);
+    font-size: 3.5rem;
+    margin: 10px 0;
+    letter-spacing: 8px;
+    color: var(--text-main);
+}
+
+.subtitle { color: var(--gold); letter-spacing: 4px; text-transform: uppercase; font-size: 0.9rem;}
+
+.hero-logo-wrapper img { height: 120px; margin-bottom: 10px; filter: brightness(0) invert(1); }
+
+/* --- SECTIONS --- */
+.section-dark { background-color: var(--bg-card); padding: 80px 20px; }
+.section-black { background-color: var(--bg-dark); padding: 80px 20px; }
+.container { max-width: 1200px; margin: 0 auto; }
+
+.split-layout { display: flex; align-items: center; gap: 60px; flex-wrap: wrap;}
+.image-box, .text-box { flex: 1; min-width: 300px; }
+.image-box img { width: 100%; border-radius: 4px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+
+/* Hilfsklasse für Zentrierung */
+.text-center { 
+    text-align: center; 
+}
+
+/* Die goldene Vor-Überschrift */
+.gold-text { 
+    display: block; /* Wichtig: Macht das Element so breit wie die Seite, damit Zentrierung geht */
+    color: var(--gold); 
+    text-transform: uppercase; 
+    letter-spacing: 2px; 
+    font-size: 0.9rem; 
+    font-weight: bold;
+    margin-bottom: 5px; /* Kleiner Abstand zur Hauptüberschrift */
+}
+
+/* Damit auch die H2-Überschriften in den Containern zentriert werden, wenn gewünscht */
+.section-black h2, 
+.section-dark h2 {
+    text-align: center;
+}
+
+/* Ausnahme: Wenn du im "Über Mich" Bereich den Text linksbündig lassen willst (wie im Bild),
+   kannst du das hier optional hinzufügen. Wenn ALLES zentriert sein soll, lass diesen Block weg. */
+/* .split-layout .text-box .gold-text,
+.split-layout .text-box h2 {
+    text-align: left;
+} 
+*/
+
+/* Stats */
+.stats-grid { display: flex; gap: 40px; margin-top: 40px; }
+.stat h3 { color: var(--gold); font-size: 2rem; margin: 0; font-family: var(--font-heading); }
+.stat p { margin: 5px 0 0 0; color: var(--text-muted); font-size: 0.9rem; }
+
+/* Gallery */
+.gallery-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 20px;
+    margin: 40px 0;
+}
+.gallery-grid img {
+    width: 100%;
+    height: 350px;
+    object-fit: cover;
+    transition: opacity 0.3s;
+    filter: grayscale(30%);
+}
+.gallery-grid img:hover { filter: grayscale(0%); cursor: pointer; }
+
+/* Calendar */
+.calendar-wrapper {
+    background: #fff; /* Cal.com braucht oft hellen Hintergrund oder Anpassung */
+    border-radius: 8px;
+    overflow: hidden;
+    min-height: 600px;
+}
+
+/* Footer */
+footer { padding: 50px 20px; border-top: 1px solid #222; text-align: center; }
+.footer-grid { display: flex; justify-content: space-around; flex-wrap: wrap; gap: 30px; margin-bottom: 30px;}
+.info-card h3 { color: var(--gold); font-size: 1.2rem; }
+.info-card a { color: var(--text-main); text-decoration: none; }
+.bottom-bar { color: #555; font-size: 0.8rem; }
+
+/* --- MOBILE OPTIMIERUNG --- */
+.mobile-menu-icon, .close-btn, #mobile-menu { display: none; }
+
+@media (max-width: 900px) {
+    .nav-links { display: none; } /* Desktop Links ausblenden */
+    .mobile-menu-icon { display: block; font-size: 1.5rem; cursor: pointer; }
+    
+    .logo-container { flex-grow: 1; }
+    
+    #mobile-menu {
+        display: none; /* JS toggled to flex */
+        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+        background: #000; z-index: 2000;
+        flex-direction: column; justify-content: center; align-items: center; gap: 30px;
+    }
+    .mobile-nav a { color: #fff; font-size: 1.5rem; text-decoration: none; }
+    .close-btn { position: absolute; top: 20px; right: 30px; font-size: 3rem; color: #fff; cursor: pointer;}
+    
+    .hero h1 { font-size: 2.5rem; }
+}
+
+/* --- INSTAGRAM FIX (Endgültig) --- */
+.instagram-wrapper {
+    display: flex !important;        /* Erzwingt Flexbox */
+    justify-content: center !important; /* Erzwingt mittige Ausrichtung */
+    align-items: center !important;
+    width: 100% !important;          /* Muss die ganze Breite nehmen */
+    text-align: center;              /* Fallback */
+    margin: 40px 0;                  /* Abstand oben/unten */
+}
+
+.instagram-link {
+    display: flex;
+    align-items: center;
+    gap: 10px;                       /* Abstand Icon zu Text */
+    color: var(--text-main);
+    text-decoration: none;
+    font-size: 1.1rem;
+    transition: all 0.3s ease;
+}
+
+.instagram-link:hover {
+    color: var(--gold);
+    transform: scale(1.05);
+}
+
+.instagram-link svg {
+    fill: currentColor;
+    width: 24px; 
+    height: 24px;
+}
+
+/* --- CAL.COM "CARD" DESIGN (Wie Bild 1.PNG) --- */
+.cal-card {
+    /* Der Rahmen wie in deinem Screenshot */
+    border: 1px solid rgba(255, 255, 255, 0.2); 
+    border-radius: 12px;             /* Leicht abgerundete Ecken */
+    background-color: #000;          /* Tiefschwarzer Hintergrund im Rahmen */
+    padding: 2px;                    /* Minimaler Abstand zum Inhalt */
+    
+    /* WICHTIG: Breite begrenzen, aber breit genug für Split-View */
+    max-width: 1100px;               
+    width: 95%;                      /* Auf Handys etwas Rand lassen */
+    margin: 0 auto;                  /* Zentriert die Karte selbst */
+    
+    /* Schatten für den "Schwebe"-Effekt */
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8); 
+    
+    overflow: hidden;                /* Damit nichts über den runden Rand steht */
+    height: 650px;                   /* Feste Höhe für sauberen Look */
+}
+
+/* Anpassung für Handys: Rahmen bleibt, aber Inhalt wird schmaler */
+@media (max-width: 800px) {
+    .cal-card {
+        height: auto;
+        min-height: 800px; /* Auf Handys muss es höher sein, da alles untereinander steht */
+    }
+}
+
+/* Styling für den großen Buchungs-Button */
+.btn-large {
+    font-size: 1.2rem;     /* Größere Schrift */
+    padding: 15px 40px;    /* Mehr Platz innen */
+    border: none;          /* Kein Standard-Rand */
+    cursor: pointer;       /* Hand-Symbol beim Drüberfahren */
+    margin-top: 20px;
+    display: inline-block;
+}
+
+/* Hover Effekt verstärken */
+.btn-large:hover {
+    transform: scale(1.05);
+    box-shadow: 0 0 15px rgba(212, 175, 55, 0.4); /* Goldener Schein */
+}
