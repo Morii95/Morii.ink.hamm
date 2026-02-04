@@ -394,3 +394,37 @@ footer { padding: 50px 20px; border-top: 1px solid #222; text-align: center; }
 .instagram-link-small:hover {
     color: var(--gold);
 }
+
+/* Styling für die Button-Gruppe im Hero */
+.hero-buttons {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 15px; /* Abstand zwischen den Zeilen */
+}
+
+.main-buttons {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+}
+
+/* Spezifisches Styling für den Piercing Button */
+.piercing-btn {
+    width: fit-content;
+    min-width: 250px; /* Damit er eine schöne Breite hat */
+}
+
+/* Mobil-Optimierung: Buttons untereinander stapeln */
+@media (max-width: 600px) {
+    .main-buttons {
+        flex-direction: column;
+        width: 100%;
+        align-items: center;
+    }
+    .hero-buttons a {
+        width: 100%;
+        max-width: 300px;
+        margin-left: 0 !important; /* Entfernt den Margin vom Outline-Button */
+    }
+}

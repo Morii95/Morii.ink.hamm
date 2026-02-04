@@ -3,17 +3,23 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Morii Ink Hamm - Dein Tattoo Artist</title>
+    
+    <title>Morii Ink Hamm | Professionelles Tattoo & Piercing Studio</title>
+    <meta name="description" content="Dein Top Tattoo Artist in Hamm. Tolga Altunkaya bietet Fineline, Blackwork und individuelle Designs. Jetzt Piercing- oder Tattoo-Termin in Hamm buchen!">
+    <meta name="keywords" content="Tattoo Hamm, Tattoo Studio Hamm, Tätowierer Hamm, Piercing Hamm, Fineline Tattoo Hamm, Morii Ink">
+    <meta name="robots" content="index, follow">
+    
+    <meta property="og:title" content="Morii Ink Hamm - Dein Tattoo Artist">
+    <meta property="og:description" content="Individuelle Tattoos & professionelles Piercing in Hamm. Besuche uns in der Ahlener Straße 96.">
+    <meta property="og:image" content="assets/logo.png">
+    <meta property="og:url" content="https://morii-ink-hamm.de">
+
     <link rel="stylesheet" href="style.css">
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Lato:wght@300;400&display=swap" rel="stylesheet">
     
     <script type="text/javascript">
-  (function (C, A, L) { let p = function (a, ar) { a.q.push(ar); }; let d = C.document; C.Cal = C.Cal || function () { let cal = C.Cal; let ar = arguments; if (!cal.loaded) { cal.ns = {}; cal.q = cal.q || []; d.head.appendChild(d.createElement("script")).src = A; cal.loaded = true; } if (ar[0] === L) { const api = function () { p(api, arguments); }; const namespace = ar[1]; api.q = api.q || []; if(typeof namespace === "string"){cal.ns[namespace] = cal.ns[namespace] || api;p(cal.ns[namespace], ar);p(cal, ["initNamespace", namespace]);} else p(cal, ar); return;} p(cal, ar); }; })(window, "https://app.cal.com/embed/embed.js", "init");
-  Cal("init", "beratungsgesprach", {origin:"https://app.cal.com"});
-  
-  // Theme Einstellung für Dark Mode
-  Cal.ns.beratungsgesprach("ui", {"cssVarsPerTheme":{"light":{"cal-brand":"#d4af37"},"dark":{"cal-brand":"#d4af37"}},"hideEventTypeDetails":false,"layout":"month_view", "theme":"dark"});
-</script>
+      /* ... dein bestehendes Cal.com Script ... */
+    </script>
 </head>
 <body>
 
@@ -29,7 +35,7 @@
 
             <div class="logo-container">
                 <a href="#home">
-                    <img src="assets/ChatGPT Image 18. Dez. 2025, 01_13_56.png" alt="Morii Ink Logo" class="nav-logo">
+                    <img src="assets/logo-mori-ink-hamm.png" alt="Morii Ink Logo" class="nav-logo">
                 </a>
             </div>
 
@@ -57,9 +63,12 @@
             <h1>MORI INK</h1>
             <p>Filigrane Linien. Einzigartige Designs. Dein Tattoo Artist in Hamm.</p>
             <div class="hero-buttons">
-                <a href="#booking" class="btn-gold">Termin buchen</a>
+            <div class="main-buttons">
+                 <a href="#booking" class="btn-gold">Termin buchen</a>
                 <a href="#gallery" class="btn-outline">Galerie ansehen</a>
             </div>
+        <a href="#booking-piercing" class="btn-gold piercing-btn">Piercing Termin buchen</a>
+        </div>
         </div>
     </section>
 
@@ -246,5 +255,37 @@
 </footer>
 
 <script src="script.js"></script>
+<script type="application/ld+json">
+
+{
+  "@context": "https://schema.org",
+  "@type": "LocalBusiness",
+  "name": "Morii Ink Hamm",
+  "image": "https://morii-ink-hamm.de/assets/logo.png",
+  "address": {
+    "@type": "PostalAddress",
+    "streetAddress": "Ahlener Straße 96",
+    "addressLocality": "Hamm",
+    "postalCode": "59073",
+    "addressCountry": "DE"
+  },
+  "geo": {
+    "@type": "GeoCoordinates",
+    "latitude": 51.6917,
+    "longitude": 7.8222
+  },
+  "url": "https://morii-ink-hamm.de",
+  "telephone": "", 
+  "openingHoursSpecification": [
+    {
+      "@type": "OpeningHoursSpecification",
+      "dayOfWeek": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"],
+      "opens": "10:00",
+      "closes": "18:00"
+    }
+  ]
+}
+
+</script>
 </body>
 </html>
