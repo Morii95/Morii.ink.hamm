@@ -335,12 +335,7 @@ footer { padding: 50px 20px; border-top: 1px solid #222; text-align: center; }
 
 /* --- PIERCERIN & GUEST ARTISTS STYLING --- */
 .artist-card-single {
-    max-width: 600px;
-    margin: 30px auto;
-    padding: 30px;
-    background: #111;
-    border: 1px solid rgba(255,255,255,0.1);
-    border-radius: 8px;
+background-color: var(--bg-card); padding: 80px 0px;
 }
 
 .guests-grid {
