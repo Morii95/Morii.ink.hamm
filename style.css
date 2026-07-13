@@ -258,31 +258,31 @@ footer { padding: 50px 20px; border-top: 1px solid #222; text-align: center; }
     height: 24px;
 }
 
-/* --- CAL.COM "CARD" DESIGN (Wie Bild 1.PNG) --- */
+/* --- BUCHUNGS-KARTE (Inkly-Embed) --- */
 .cal-card {
-    /* Der Rahmen wie in deinem Screenshot */
-    border: 1px solid rgba(255, 255, 255, 0.2); 
-    border-radius: 12px;             /* Leicht abgerundete Ecken */
-    background-color: #000;          /* Tiefschwarzer Hintergrund im Rahmen */
-    padding: 2px;                    /* Minimaler Abstand zum Inhalt */
-    
-    /* WICHTIG: Breite begrenzen, aber breit genug für Split-View */
-    max-width: 1100px;               
+    /* Kein Rahmen — nur weicher Schatten */
+    border-radius: 14px;
+
+    /* Creme-Hintergrund passend zum Inkly-Buchungsdesign (#FAF7EF) -> keine schwarzen Raender */
+    background-color: #FAF7EF;
+    padding: 0;                      /* iFrame fuellt die Karte randlos */
+
+    max-width: 1100px;
     width: 95%;                      /* Auf Handys etwas Rand lassen */
     margin: 0 auto;                  /* Zentriert die Karte selbst */
-    
-    /* Schatten für den "Schwebe"-Effekt */
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8); 
-    
-    overflow: hidden;                /* Damit nichts über den runden Rand steht */
-    height: 650px;                   /* Feste Höhe für sauberen Look */
+
+    /* Nur Schatten fuer den "Schwebe"-Effekt (kein Rahmen) */
+    box-shadow: 0 20px 55px rgba(0, 0, 0, 0.7);
+
+    overflow: hidden;                /* Damit der iFrame die runden Ecken respektiert */
+    height: 720px;                   /* Etwas hoeher: Platz fuer Kalender-/Slot-Schritt */
 }
 
-/* Anpassung für Handys: Rahmen bleibt, aber Inhalt wird schmaler */
+/* Anpassung fuer Handys: mehr Hoehe, da alles untereinander steht */
 @media (max-width: 800px) {
     .cal-card {
         height: auto;
-        min-height: 800px; /* Auf Handys muss es höher sein, da alles untereinander steht */
+        min-height: 820px;
     }
 }
 
