@@ -112,7 +112,7 @@ nav {
     text-align: center;
     position: relative;
     /* Hier optional ein Hintergrundbild einfügen */
-    background: linear-gradient(to bottom, #000000cc, #050505), url('assets/d563ae74-4c27-47ce-9aa0-fae8539775c4.jpg');
+    background: linear-gradient(to bottom, #000000cc, #050505), url('assets/d563ae74-4c27-47ce-9aa0-fae8539775c4.webp');
     background-size: cover;
     background-position: center;
 }

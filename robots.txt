@@ -1,0 +1,31 @@
+# robots.txt – Morii Ink Hamm (https://mori-ink.de)
+
+# Standard: alle Bots dürfen alles crawlen
+User-agent: *
+Allow: /
+
+# Klassische Suchmaschinen
+User-agent: Googlebot
+Allow: /
+
+User-agent: Bingbot
+Allow: /
+
+# KI-Crawler (Antworten in ChatGPT, Claude, Perplexity)
+User-agent: OAI-SearchBot
+Allow: /
+
+User-agent: ChatGPT-User
+Allow: /
+
+User-agent: GPTBot
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+# Sitemap
+Sitemap: https://mori-ink.de/sitemap.xml
