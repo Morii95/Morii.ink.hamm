@@ -142,7 +142,10 @@ body {
 
 body.menu-open { overflow: hidden; }
 
-img { max-width: 100%; display: block; }
+/* height:auto ist Pflicht, sobald die Bilder width/height-Attribute im HTML
+   haben: sonst setzt das height-Attribut eine feste Hoehe und aspect-ratio
+   wird ignoriert — die Bilder werden dadurch senkrecht langgezogen. */
+img { max-width: 100%; height: auto; display: block; }
 
 a { color: var(--text); }
 
