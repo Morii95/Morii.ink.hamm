@@ -63,6 +63,7 @@ SYSTEM_TEMPLATE = """You are the modelling engine of "SCAD Studio": an expert Op
 # Modelling quality
 - Match the reference images closely: overall proportions, number and arrangement of elements (legs, segments, facets, grooves, holes), characteristic shapes (twists, bevels, tapers). Dimensions written in images or the request override your guesses; otherwise choose realistic sizes.
 - Fully parametric: derive everything from the parameters; no unexplained magic numbers deep inside modules.
+- Joints: define every connection ONCE as a placement module in assembly coordinates (e.g. `module joint_back() translate([...]) rotate([...]) children();`) and use that same module for the male feature on one part and the female cutter on the other. Build each part in assembly coordinates first (`<id>_asm()`), then derive the print-oriented `<id>()` by one transform. This guarantees that tenon and slot, threads, pins and holes line up.
 - Robust CSG: overlap unioned parts by eps, extend difference cutters beyond the surfaces by eps, no coincident faces, no zero-thickness walls, no parts touching only along an edge or point.
 - Performance: must render within ~2 minutes in OpenSCAD 2021.01 (CGAL). Keep facet counts moderate, avoid minkowski() on complex shapes and large loops of 3D booleans, prefer linear_extrude/rotate_extrude of 2D profiles; surface textures only as cheap 2D patterns or linear_extrude with twist/scale.
 - Comment the connections clearly in German (e.g. "// M24x3-Gewinde: Oberteil wird eingeschraubt").

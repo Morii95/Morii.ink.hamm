@@ -81,6 +81,9 @@ PART_REPAIR_CODES = {"bed_rotate", "thin_wall", "base", "flipped", "orientation"
                      "inverted_shells", "nonmanifold", "open_edges", "tiny"}
 
 
+OVERHANG_REPAIR_FRACTION = 0.10   # ab 10 % Überhangfläche liegt das Teil vermutlich falsch
+
+
 def _repair_issues(check: dict[str, Any], *, printable_part: bool) -> list[str]:
     """Fehler (immer) und – bei Druckteilen – relevante Warnungen der Netzprüfung."""
     out = []
@@ -88,6 +91,11 @@ def _repair_issues(check: dict[str, Any], *, printable_part: bool) -> list[str]:
         level, code = issue.get("level"), issue.get("code", "")
         if level == "error" or (printable_part and level == "warning" and code in PART_REPAIR_CODES):
             out.append(issue["text"])
+    overhang = check.get("overhang_fraction") or 0
+    if printable_part and overhang > OVERHANG_REPAIR_FRACTION:
+        out.append(f"{overhang * 100:.0f} % der Oberfläche hängen mehr als 45° über – das Teil muss "
+                   "stützenfrei druckbar sein: im Export in Druckausrichtung legen (größte flache Seite "
+                   "auf z=0) und Überhänge anfasen.")
     return out
 
 
