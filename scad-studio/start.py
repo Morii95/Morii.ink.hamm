@@ -39,6 +39,15 @@ def ensure_dependencies() -> None:
     if sys.prefix != sys.base_prefix:  # in einer virtuellen Umgebung ohne --user
         cmd.remove("--user")
     result = subprocess.run(cmd)
+    # Frisch angelegter Benutzer-Paketordner ist erst nach einem Neustart im
+    # Suchpfad – hier gleich nachtragen, damit die Pakete sofort gefunden werden.
+    import importlib
+    import site
+    try:
+        site.addsitedir(site.getusersitepackages())
+    except (AttributeError, OSError):
+        pass
+    importlib.invalidate_caches()
     if result.returncode != 0:
         print("\nAutomatische Installation fehlgeschlagen. Bitte manuell ausführen:\n"
               f"  {sys.executable} -m pip install -r requirements.txt\n")

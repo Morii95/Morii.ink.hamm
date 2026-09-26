@@ -22,6 +22,15 @@ Meshy AI, aber mit sauberem, parametrischem CAD-Code, den du selbst weiter bearb
 - **Customizer-Variablen:** Jede erzeugte `.scad`-Datei hat oben Parameter (Maße, Spaltmaß, Drucker,
   Teil-Auswahl, Explosionsansicht), die du in OpenSCAD unter **Fenster → Customizer** ändern kannst.
 
+![SCAD Studio mit der modularen Lampe: 3D-Ansicht mit Maßen und Passungsprüfung](docs/studio-pruefbericht.jpg)
+
+| Tischlampe (Zusammenbau) | Stehlampe (Explosionsansicht) | Druckteile in Druckausrichtung |
+|---|---|---|
+| ![Tischlampe](docs/lampe-tisch.jpg) | ![Stehlampe explodiert](docs/lampe-steh-explosion.jpg) | ![Druckteile](docs/lampe-druckteile.jpg) |
+
+*Beispiel „Modulare Lampe“ – nach zwei Konzeptbildern konstruiert. Alle Druckteile passen auf den
+Kobra 2 Neo, die Passungsprüfung bestätigt 26 (Tisch) bzw. 29 (Steh) Teilepaare ohne Überschneidung.*
+
 ---
 
 ## 1. Installation (einmalig)
@@ -56,7 +65,11 @@ Du brauchst **eine** der folgenden Möglichkeiten:
 | **Google Gemini** | kostenloses Kontingent | Schlüssel unter [aistudio.google.com/apikey](https://aistudio.google.com/apikey) erstellen und einfügen. Wird auch für „Bild erzeugen“ gebraucht. |
 | **Claude Code (lokal)** | über dein Claude-Abo | [Claude Code](https://claude.com/claude-code) installieren, einmal `claude` im Terminal starten und anmelden. Kein Schlüssel nötig. |
 | **Anthropic Claude (API)** | nach Verbrauch | Schlüssel unter [platform.claude.com](https://platform.claude.com). Standardmodell `claude-opus-5`; Ausweichmodelle bei Ablehnungen sind aktiviert. |
-| **Ollama (lokal)** | kostenlos, offline | [ollama.com](https://ollama.com) installieren, z. B. `ollama pull qwen3-vl:8b`, Basis-URL `http://localhost:11434/v1`. Lokale Modelle konstruieren deutlich schwächer als Gemini/Claude. |
+| **Ollama (lokal)** | kostenlos, offline | [ollama.com](https://ollama.com) installieren, z. B. `ollama pull qwen3-vl:8b`, Basis-URL `http://localhost:11434/v1`. Wichtig: Ollama mit größerem Kontext starten (`OLLAMA_CONTEXT_LENGTH=16384`), sonst wird die Konstruktionsanleitung abgeschnitten. Lokale Modelle konstruieren deutlich schwächer als Gemini/Claude. |
+
+**Dauer:** Eine KI-Konstruktion braucht je nach Modell und Umfang 1–15 Minuten (Claude Code denkt bei
+komplexen, mehrteiligen Modellen gründlich nach). Im Protokoll siehst du jederzeit, was gerade passiert;
+mit **Abbrechen** stoppst du den Vorgang.
 
 Mit **„Verfügbare Modelle abrufen“** lädt das Studio die aktuellen Gemini-Modelle live.
 Tipp: Für Gemini-Bilder ist `gemini-3.1-flash-lite-image` kostenlos nutzbar. `gemini-3.1-flash-image`

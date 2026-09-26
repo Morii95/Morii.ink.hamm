@@ -66,6 +66,6 @@ def printer_list() -> list[dict[str, Any]]:
 
 def _float(value: Any, default: float) -> float:
     try:
-        return float(value)
+        return float(str(value).replace(",", "."))
     except (TypeError, ValueError):
         return default

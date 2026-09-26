@@ -135,7 +135,7 @@ def render_and_check(job: Job, project: Project, settings: Settings, *,
     if parts and export_parts:
         parts_dir = project.path / "parts"
         shutil.rmtree(parts_dir, ignore_errors=True)
-        parts_dir.mkdir()
+        parts_dir.mkdir(exist_ok=True)   # unter Windows evtl. noch gesperrt
         workers = render_workers(settings)
         job.info(f"Exportiere {len(parts)} Druckteile" + (f" ({workers} parallel)" if workers > 1 else "") + " …")
 
@@ -242,7 +242,7 @@ def collision_check(job: Job, project: Project, settings: Settings) -> dict[str,
     timeout = float(settings.get("render_timeout") or 600)
     work = project.path / "_passung"
     shutil.rmtree(work, ignore_errors=True)
-    work.mkdir()
+    work.mkdir(exist_ok=True)
     defines = {"part": '"__none__"', "explode": "0"}
 
     def render_snippet(name: str, body: str) -> openscad.RenderResult:
@@ -253,10 +253,30 @@ def collision_check(job: Job, project: Project, settings: Settings) -> dict[str,
             return openscad.render(scad, work / f"{name}.stl", info, use_manifold=use_manifold,
                                    timeout=timeout, defines=defines, cancel=job.cancel_event)
         finally:
-            scad.unlink(missing_ok=True)
+            _unlink_quietly(scad)
+
+    try:
+        return _collision_pairs(job, project, settings, parts, work, render_snippet)
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+        for leftover in project.path.glob("_passung_*.scad"):
+            _unlink_quietly(leftover)
+
+
+def _collision_pairs(job: Job, project: Project, settings: Settings, parts: list[dict[str, str]],
+                     work: Path, render_snippet: Callable[[str, str], openscad.RenderResult]) -> dict[str, Any]:
+    from . import meshcheck
+
+    # 0) Ohne Teil-Auswahl darf das Modell nichts erzeugen – sonst „kollidiert“ jedes Paar
+    base = render_snippet("leer", "")
+    if not _only_empty(base):
+        raise JobError("Das Modell erzeugt auch ohne Teil-Auswahl (part = \"__none__\") Geometrie – "
+                       "bitte keinen Standardzweig (else) im Dispatcher und keine Geometrie außerhalb "
+                       "der Teile-Module verwenden.")
 
     workers = render_workers(settings)
     labels = {p["id"]: p["label"] for p in parts}
+    incomplete: list[str] = []
 
     # 1) Jedes Teil in Einbaulage → Hüllquader
     job.info(f"Setze {len(parts)} Teile in Einbaulage" + (f" ({workers} parallel)" if workers > 1 else "") + " …")
@@ -268,7 +288,8 @@ def collision_check(job: Job, project: Project, settings: Settings) -> dict[str,
         if _only_empty(res):
             continue  # Teil wird in dieser Konfiguration nicht verwendet
         if not res.ok:
-            job.warn(f"{part['label']}: Einbaulage konnte nicht erzeugt werden – übersprungen.")
+            job.warn(f"{part['label']}: Einbaulage konnte nicht erzeugt werden – nicht geprüft.")
+            incomplete.append(f"{part['label']}: Einbaulage fehlerhaft ({(res.errors or ['?'])[0]})")
             continue
         boxes[part["id"]] = meshcheck.stl_bbox(work / f"placed_{part['id']}.stl")
 
@@ -292,33 +313,43 @@ def collision_check(job: Job, project: Project, settings: Settings) -> dict[str,
         name = f"pair_{a}__{b}"
         res = results[(a, b)]
         entry: dict[str, Any] = {"a": a, "b": b, "label": f"{labels[a]} ↔ {labels[b]}"}
-        empty = any("leer" in e or "empty" in e for e in res.errors)
         if res.ok:
             volume = meshcheck.analyze(work / f"{name}.stl", wall_samples=0).get("volume_cm3", 0) * 1000
             entry["volume_mm3"] = round(volume, 2)
             entry["ok"] = volume < COLLISION_MIN_VOLUME
-        elif empty:
+        elif _only_empty(res):
             entry["volume_mm3"] = 0.0
             entry["ok"] = True
         else:
             entry["ok"] = None
             entry["error"] = (res.errors or ["Prüfung fehlgeschlagen"])[0]
+            incomplete.append(f"{entry['label']}: nicht prüfbar ({entry['error']})")
         checked.append(entry)
         if entry["ok"] is False:
             collisions.append(entry)
             job.warn(f"Kollision: {entry['label']} überschneiden sich um {entry['volume_mm3']:.1f} mm³.")
         elif entry["ok"]:
             job.info(f"{entry['label']}: frei (Spaltmaß eingehalten).")
-    shutil.rmtree(work, ignore_errors=True)
+        else:
+            job.warn(f"{entry['label']}: konnte nicht geprüft werden.")
 
-    result = {"ok": not collisions, "pairs": checked, "collisions": collisions,
-              "parts": len(ids), "time": time.strftime("%Y-%m-%d %H:%M:%S")}
+    result = {"ok": not collisions and not incomplete, "pairs": checked, "collisions": collisions,
+              "incomplete": incomplete, "parts": len(ids), "time": time.strftime("%Y-%m-%d %H:%M:%S")}
     project.update(collisions=result)
     if collisions:
         job.warn(f"{len(collisions)} Kollision(en) gefunden.")
-    else:
+    if incomplete:
+        job.warn(f"Passungsprüfung unvollständig: {len(incomplete)} Teil(e)/Paar(e) nicht prüfbar.")
+    if not collisions and not incomplete:
         job.info(f"Passungsprüfung bestanden: {len(checked)} Teilepaare ohne Überschneidung.", "success")
     return {"project": project.to_dict(), "collisions": result}
+
+
+def _unlink_quietly(path: Path) -> None:
+    try:
+        path.unlink()
+    except OSError:
+        pass
 
 
 def should_check_fit(settings: Settings, project: Project) -> bool:
@@ -333,8 +364,10 @@ def should_check_fit(settings: Settings, project: Project) -> bool:
 
 
 def collision_problems(result: dict[str, Any]) -> list[str]:
-    return [f"Kollision im Zusammenbau: {c['label']} überschneiden sich um {c['volume_mm3']:.1f} mm³ – "
-            f"Spaltmaß, Position oder Gewindephase korrigieren." for c in result.get("collisions", [])]
+    problems = [f"Kollision im Zusammenbau: {c['label']} überschneiden sich um {c['volume_mm3']:.1f} mm³ – "
+                f"Spaltmaß, Position oder Gewindephase korrigieren." for c in result.get("collisions", [])]
+    problems += [f"Passungsprüfung unvollständig – {text}" for text in result.get("incomplete", [])]
+    return problems
 
 
 def _boxes_touch(a: dict[str, Any], b: dict[str, Any], margin: float = 0.05) -> bool:
@@ -346,11 +379,45 @@ def _boxes_touch(a: dict[str, Any], b: dict[str, Any], margin: float = 0.05) -> 
 # ---------------------------------------------------------------------------
 
 
+MAX_AI_IMAGE_SIDE = 2000          # px – größere Bilder bringen der KI nichts
+MAX_AI_IMAGE_BYTES = 3_500_000    # Claude erlaubt max. 5 MB pro Bild (Base64 ≈ +33 %)
+
+
+def prepare_ai_image(data: bytes) -> tuple[bytes, str]:
+    """Bild für KI-Anbieter tauglich machen: gängiges Format, handliche Größe.
+
+    Handyfotos (HEIC/BMP, 12 MP) würden sonst mit 400 abgelehnt.
+    """
+    mime = guess_mime(data)
+    if mime in ("image/png", "image/jpeg", "image/webp") and len(data) <= MAX_AI_IMAGE_BYTES:
+        try:
+            from PIL import Image as PILImage
+            with PILImage.open(io.BytesIO(data)) as probe:
+                if max(probe.size) <= MAX_AI_IMAGE_SIDE:
+                    return data, mime
+        except Exception:
+            return data, mime
+    try:
+        from PIL import Image as PILImage, ImageOps
+        img = ImageOps.exif_transpose(PILImage.open(io.BytesIO(data)))
+    except Exception:
+        return data, mime   # Pillow kann es nicht lesen – Anbieter entscheidet
+    img.thumbnail((MAX_AI_IMAGE_SIDE, MAX_AI_IMAGE_SIDE))
+    buf = io.BytesIO()
+    if img.mode in ("RGBA", "LA", "P") and "transparency" in img.info or img.mode in ("RGBA", "LA"):
+        img.convert("RGBA").save(buf, "PNG", optimize=True)
+        if buf.tell() <= MAX_AI_IMAGE_BYTES:
+            return buf.getvalue(), "image/png"
+        buf = io.BytesIO()
+    img.convert("RGB").save(buf, "JPEG", quality=88, optimize=True)
+    return buf.getvalue(), "image/jpeg"
+
+
 def _load_images(project: Project, names: list[str]) -> list[Image]:
     images = []
     for i, name in enumerate(names, 1):
-        data = project.file(name).read_bytes()
-        images.append(Image(data=data, mime=guess_mime(data), label=f"Referenzbild {i}:"))
+        data, mime = prepare_ai_image(project.file(name).read_bytes())
+        images.append(Image(data=data, mime=mime, label=f"Referenzbild {i}:"))
     return images
 
 

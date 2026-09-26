@@ -23,7 +23,7 @@ from pathlib import Path
 from typing import Any
 
 from ..jobs import JobError
-from ..openscad import Cancelled
+from ..openscad import Cancelled, kill_tree, popen_group
 
 HTTP_TIMEOUT = 600
 
@@ -191,8 +191,6 @@ class GeminiProvider(Provider):
         reason = cand.get("finishReason", "")
         if not text.strip():
             raise JobError(f"Gemini hat keinen Text geliefert (finishReason: {reason or '?'}).")
-        if reason == "MAX_TOKENS":
-            text += "\n\n[Hinweis: Antwort wurde wegen Längenlimit abgeschnitten]"
         return text
 
     def list_models(self, cancel: threading.Event | None = None) -> list[dict[str, str]]:
@@ -282,7 +280,7 @@ class AnthropicProvider(Provider):
 
         kwargs: dict[str, Any] = {
             "model": self.model,
-            "max_tokens": max_tokens,
+            "max_tokens": max(max_tokens, 64000),
             "system": system,
             "messages": api_messages,
         }
@@ -321,8 +319,6 @@ class AnthropicProvider(Provider):
         if final.stop_reason == "refusal":
             raise JobError("Claude hat die Anfrage abgelehnt.")
         text = "".join(b.text for b in final.content if b.type == "text")
-        if final.stop_reason == "max_tokens":
-            text += "\n\n[Hinweis: Antwort wurde wegen Längenlimit abgeschnitten]"
         if not text.strip():
             raise JobError("Claude hat keinen Text geliefert.")
         return text
@@ -362,6 +358,12 @@ class OpenAICompatProvider(Provider):
         body = {"model": self.model, "messages": api_messages, "temperature": 0.3,
                 "max_tokens": min(max_tokens, 16000)}
         data = _http_json(self.base_url + "/chat/completions", body, headers, cancel)
+        if data["_status"] == 400 and any(k in json.dumps(data.get("error", "")) for k in
+                                         ("max_tokens", "temperature", "max_completion_tokens")):
+            # z. B. OpenAI-Reasoning-Modelle: nur Standardwerte erlaubt
+            body.pop("temperature", None)
+            body["max_completion_tokens"] = body.pop("max_tokens")
+            data = _http_json(self.base_url + "/chat/completions", body, headers, cancel)
         status = data["_status"]
         if status != 200:
             err = data.get("error")
@@ -443,8 +445,9 @@ class ClaudeCodeProvider(Provider):
 
     name = "Claude Code"
 
-    def __init__(self, path: str, model: str):
+    def __init__(self, path: str, model: str, effort: str = "medium"):
         super().__init__(model)
+        self.effort = effort if effort in ("low", "medium", "high", "xhigh", "max") else ""
         exe = find_claude_cli(path)
         if not exe:
             raise JobError("Claude Code wurde nicht gefunden. Installation: https://claude.com/claude-code "
@@ -483,12 +486,12 @@ class ClaudeCodeProvider(Provider):
                    "--max-turns", "12", "--add-dir", str(workdir)]
             if self.model:
                 cmd += ["--model", self.model]
+            if self.effort:   # ohne Begrenzung denkt Claude Code bei Konstruktionen sehr lange
+                cmd += ["--effort", self.effort]
             env = dict(os.environ)
             env.setdefault("CLAUDE_CODE_MAX_OUTPUT_TOKENS", "64000")
-            flags = getattr(subprocess, "CREATE_NO_WINDOW", 0) if os.name == "nt" else 0
-            proc = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
-                                    stderr=subprocess.PIPE, cwd=str(workdir), env=env,
-                                    creationflags=flags)
+            proc = popen_group(cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                               stderr=subprocess.PIPE, cwd=str(workdir), env=env)
             box: dict[str, Any] = {}
 
             def talk() -> None:
@@ -499,7 +502,7 @@ class ClaudeCodeProvider(Provider):
             start = time.monotonic()
             while thread.is_alive():
                 if (cancel is not None and cancel.is_set()) or time.monotonic() - start > 1800:
-                    proc.kill()
+                    kill_tree(proc)
                     thread.join(5)
                     if cancel is not None and cancel.is_set():
                         raise Cancelled()
@@ -508,6 +511,10 @@ class ClaudeCodeProvider(Provider):
             out = (box.get("out") or b"").decode("utf-8", "replace")
             err = (box.get("err") or b"").decode("utf-8", "replace")
             text, result = parse_claude_stream(out)
+            if proc.returncode != 0 and self.effort and "--effort" in err and "unknown" in err.lower():
+                # ältere Claude-Code-Version ohne --effort → ohne erneut versuchen
+                self.effort = ""
+                return self.complete(system, messages, cancel=cancel, max_tokens=max_tokens)
             if proc.returncode != 0 or result.get("is_error") or not text.strip():
                 detail = str(result.get("error") or result.get("subtype") or err.strip()
                              or out.strip())[-400:]
@@ -540,7 +547,8 @@ def make_provider(settings: Any, provider: str | None = None, model: str | None 
         return OpenAICompatProvider(settings.get("openai_base_url"), settings.get("openai_api_key"),
                                     model or settings.get("openai_model"))
     if provider == "claude_cli":
-        return ClaudeCodeProvider(settings.get("claude_cli_path"), model or settings.get("claude_cli_model"))
+        return ClaudeCodeProvider(settings.get("claude_cli_path"), model or settings.get("claude_cli_model"),
+                                  settings.get("claude_cli_effort") or "medium")
     raise JobError(f"Unbekannter KI-Anbieter: {provider}")
 
 

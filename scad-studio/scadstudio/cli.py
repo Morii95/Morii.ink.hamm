@@ -221,6 +221,12 @@ def _parse_value(value: str) -> Any:
 
 
 def main(argv: list[str] | None = None) -> int:
+    # Windows-Konsolen/Pipes nutzen sonst cp1252 → Absturz bei „↔“, „×“ usw.
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(encoding="utf-8", errors="replace")
+        except (AttributeError, ValueError):
+            pass
     parser = argparse.ArgumentParser(prog="python -m scadstudio",
                                      description=f"{APP_NAME} – KI-3D-Studio für OpenSCAD")
     sub = parser.add_subparsers(dest="command")

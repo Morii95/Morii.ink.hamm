@@ -40,7 +40,11 @@
     }
     return fetch(path, opts).then(function (res) {
       return res.json().catch(function () { return {}; }).then(function (data) {
-        if (!res.ok || data.error) throw new Error(data.error || ('Fehler ' + res.status));
+        if (!res.ok || data.error) {
+          var err = new Error(data.error || ('Fehler ' + res.status));
+          err.status = res.status;
+          throw err;
+        }
         return data;
       });
     });
@@ -257,6 +261,10 @@
     box.appendChild(el('span', { class: 'chip ' + (prov[active] ? 'ok' : 'warn'),
       title: prov[active] ? 'KI eingerichtet' : 'KI noch nicht eingerichtet – Einstellungen öffnen',
       text: 'KI: ' + (s.provider_labels[active] || active) + (prov[active] ? '' : ' (einrichten)') }));
+    if (s.projects_error) {
+      box.appendChild(el('span', { class: 'chip err', title: s.projects_error, text: 'Projektordner fehlt',
+        onclick: function () { openSettings(); } }));
+    }
     var pr = s.printer;
     box.appendChild(el('span', { class: 'chip', title: 'Düse ' + pr.nozzle + ' mm · Spaltmaß ' + pr.tol + ' mm · ' + pr.material,
       text: pr.name + ' · ' + pr.bed.join('×') + ' mm' }));
@@ -377,6 +385,10 @@
   // Projekte
   // ---------------------------------------------------------------------
   function openProject(id, quiet) {
+    if (state.job && !quiet) {
+      toast('Bitte warten, bis der laufende Vorgang fertig ist (oder abbrechen).');
+      return Promise.resolve();
+    }
     return api('/api/projects/' + encodeURIComponent(id)).then(function (project) {
       setProject(project, true);
     }).catch(function (err) {
@@ -413,6 +425,7 @@
   }
 
   function newProject() {
+    if (busy()) return;
     state.project = null;
     try { localStorage.removeItem('scadstudio.project'); } catch (e) { /* egal */ }
     $('#project-title').value = '';
@@ -491,7 +504,17 @@
           } else {
             done();
           }
-        }).catch(function () { setTimeout(tick, 1500); });
+        }).catch(function (err) {
+          if (err.status === 404) {
+            // Auftrag unbekannt (z. B. Server neu gestartet) – nicht endlos weiterfragen
+            state.job = null;
+            setBusy(false);
+            $('#job-status').textContent = 'Vorgang nicht mehr vorhanden (Server neu gestartet?).';
+            resolve(null);
+            return;
+          }
+          setTimeout(tick, 1500);
+        });
       }
       tick();
     });
@@ -632,7 +655,9 @@
     if (busy()) return;
     var instruction = $('#ai-instruction').value.trim();
     if (!instruction && !state.aiImages.length) { toast('Bitte beschreibe das Objekt oder füge ein Bild hinzu.', true); return; }
-    var body = { instruction: instruction, images: state.aiImages, title: $('#project-title').value.trim() };
+    // Titel nur übernehmen, wenn gerade kein anderes Projekt geöffnet ist
+    var title = state.project ? '' : $('#project-title').value.trim();
+    var body = { instruction: instruction, images: state.aiImages, title: title };
     state.project = null;
     runJob(api('/api/ai/generate', body), function (job) {
       if (job.status === 'done') {
@@ -808,7 +833,8 @@
   function convertImage() {
     if (busy()) return;
     if (!state.imgSource) { toast('Bitte zuerst ein Bild wählen.', true); return; }
-    var title = $('#project-title').value.trim() || (MODES[state.imgMode].label + ' aus Bild');
+    var reuse = state.project && state.project.kind === 'image' && state.imgFromProject;
+    var title = (reuse || !state.project ? $('#project-title').value.trim() : '') || (MODES[state.imgMode].label + ' aus Bild');
     var body = { image: state.imgSource, mode: state.imgMode, params: imageParams(), title: title };
     // Gleiches Bild im selben Bild-Projekt → Projekt weiterverwenden
     if (state.project && state.project.kind === 'image' && state.imgFromProject) {
@@ -1084,8 +1110,13 @@
     }
     if (fit) {
       var bad = fit.collisions || [];
-      box.appendChild(el('div', { class: 'report-summary ' + (bad.length ? 'err' : 'ok'),
-        text: bad.length ? ('✗ ' + bad.length + ' Kollision(en) im Zusammenbau') : ('✓ ' + fit.pairs.length + ' Teilepaare geprüft – nichts steckt ineinander') }));
+      var open = fit.incomplete || [];
+      var cls = bad.length ? 'err' : (open.length ? 'warn' : 'ok');
+      var txt = bad.length ? ('✗ ' + bad.length + ' Kollision(en) im Zusammenbau')
+        : open.length ? ('⚠ Unvollständig: ' + open.length + ' Teil(e)/Paar(e) nicht prüfbar')
+        : ('✓ ' + fit.pairs.length + ' Teilepaare geprüft – nichts steckt ineinander');
+      box.appendChild(el('div', { class: 'report-summary ' + cls, text: txt }));
+      if (open.length) box.appendChild(issueList(open.map(function (t) { return { level: 'warning', text: t }; })));
       var items = fit.pairs.map(function (pair) {
         var level = pair.ok === false ? 'error' : (pair.ok ? 'info' : 'warning');
         var text = pair.label + ': ' + (pair.ok === false ? ('Überschneidung ' + fmt(pair.volume_mm3, 1) + ' mm³')

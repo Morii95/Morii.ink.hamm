@@ -45,6 +45,13 @@ class PromptTests(unittest.TestCase):
         code, _ = prompts.extract_code("Text\n```openscad\nmodule a() { cube(1); }\na();")
         self.assertIn("module a()", code)
 
+    def test_prose_with_scad_words_is_not_code(self):
+        text = "PASST – die Teile sind per union() sauber verbunden und der cube() sitzt."
+        self.assertEqual(prompts.extract_code(text)[0], "")
+        self.assertTrue(prompts.is_approval(text))
+        unfenced = "module a() cube(1);\nb = 2;\na();\ntranslate([1, 0, 0]) a();"
+        self.assertIn("module a()", prompts.extract_code(unfenced)[0])
+
     def test_extract_no_code(self):
         code, explanation = prompts.extract_code("PASST")
         self.assertEqual(code, "")
@@ -57,6 +64,8 @@ class PromptTests(unittest.TestCase):
         self.assertEqual([p["id"] for p in prompts.parse_parts(code)], ["leg", "hub", "shade"])
         self.assertEqual(prompts.parse_parts(code)[0]["label"], "Bein")
         self.assertEqual(prompts.parse_parts("x = 1;"), [])
+        dup = 'part = "assembly"; // [assembly:A, leg:Bein, leg:Bein2, bad id:X]\n'
+        self.assertEqual([p["id"] for p in prompts.parse_parts(dup)], ["leg"])
 
     def test_system_prompt_contains_printer_and_library(self):
         settings = Settings(Path(_HOME) / "s1.json")

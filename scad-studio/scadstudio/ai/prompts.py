@@ -210,21 +210,33 @@ def extract_code(text: str) -> tuple[str, str]:
         explanation = _FENCE_RE.sub("", text).strip()
         return code.strip() + "\n", explanation
     # Abgeschnittene Antwort: öffnender Zaun ohne schließenden
-    match = re.search(r"```[ \t]*(?:openscad|scad)?[^\n]*\n(.*)$", text, re.S)
-    if match and _looks_like_scad(match.group(1)):
-        return match.group(1).strip() + "\n", text[: match.start()].strip()
+    match = re.search(r"```[ \t]*(openscad|scad)?[^\n]*\n(.*)$", text, re.S)
+    if match and (match.group(1) or _looks_like_scad(match.group(2))):
+        return match.group(2).strip() + "\n", text[: match.start()].strip()
     if _looks_like_scad(text):
         return text.strip() + "\n", ""
     return "", text.strip()
 
 
 def _looks_like_scad(text: str) -> bool:
-    return bool(re.search(r"\b(module|cube|cylinder|sphere|linear_extrude|polyhedron|difference|union)\s*\(", text))
+    """Nur echten Code erkennen – nicht Fließtext, der „union()“ erwähnt.
+
+    Verlangt mehrere Code-Zeilen (Zuweisung, Modul, Aufruf mit ;) und kaum Prosa.
+    """
+    lines = [l.strip() for l in text.strip().splitlines() if l.strip()]
+    if len(lines) < 3:
+        return False
+    code_like = sum(1 for l in lines if re.match(
+        r"^(//|/\*|\*|module\b|function\b|use\b|include\b|[A-Za-z_$][\w$]*\s*=|[}{)\]]|"
+        r"(translate|rotate|scale|mirror|color|union|difference|intersection|hull|linear_extrude|"
+        r"rotate_extrude|cube|cylinder|sphere|polygon|polyhedron|for|if)\s*\()", l))
+    return code_like / len(lines) >= 0.7 and bool(
+        re.search(r"\b(cube|cylinder|sphere|polygon|polyhedron|linear_extrude|rotate_extrude|module)\b", text))
 
 
 def is_approval(text: str) -> bool:
-    code, explanation = extract_code(text)
-    return not code and "PASST" in text.upper()[:200]
+    """„PASST“ ohne Code-Block = die KI ist zufrieden."""
+    return "```" not in text and "PASST" in text.upper()[:300]
 
 
 _PART_RE = re.compile(r'^\s*part\s*=\s*"([^"]*)"\s*;\s*//\s*\[([^\]]*)\]', re.M)
@@ -242,7 +254,9 @@ def parse_parts(code: str) -> list[dict[str, str]]:
             continue
         key, _, label = item.partition(":")
         key = key.strip().strip('"')
-        if key in ("assembly", "all_parts", "all") or not re.match(r"^[A-Za-z0-9_\-]+$", key):
+        if key in ("assembly", "all_parts", "all") or not re.fullmatch(r"[A-Za-z0-9_\-]+", key):
+            continue
+        if any(p["id"] == key for p in parts):   # doppelte Einträge ignorieren
             continue
         parts.append({"id": key, "label": label.strip() or key})
     return parts

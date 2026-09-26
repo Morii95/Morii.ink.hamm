@@ -222,6 +222,14 @@
         <p class="hint">Nutzt dein lokal installiertes <b>Claude Code</b> (Abo statt API-Schlüssel). Einmal „claude“ im Terminal starten und anmelden.</p>
         <label class="label">Pfad (leer = automatisch) <input name="claude_cli_path" placeholder="automatisch"></label>
         <label class="label">Modell (leer = Standard) <input name="claude_cli_model" placeholder="z. B. opus oder sonnet"></label>
+        <label class="label">Denktiefe
+          <select name="claude_cli_effort">
+            <option value="low">niedrig (schnell)</option>
+            <option value="medium">mittel (empfohlen)</option>
+            <option value="high">hoch (gründlich, langsamer)</option>
+            <option value="xhigh">sehr hoch</option>
+          </select>
+        </label>
       </div>
       <div class="grid2">
         <label class="label">Auto-Reparaturen <input type="number" name="repair_attempts" min="0" max="8"></label>

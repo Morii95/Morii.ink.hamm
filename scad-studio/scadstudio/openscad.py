@@ -11,9 +11,9 @@ import glob
 import os
 import re
 import shutil
+import signal
 import subprocess
 import sys
-import tempfile
 import threading
 import time
 from dataclasses import dataclass, field
@@ -231,32 +231,66 @@ def _needs_virtual_display() -> bool:
             and not os.environ.get("WAYLAND_DISPLAY") and shutil.which("xvfb-run") is not None)
 
 
+def popen_group(cmd: list[str], **kwargs) -> subprocess.Popen:
+    """Startet einen Prozess in einer eigenen Prozessgruppe.
+
+    Nötig, weil openscad.com (Windows), claude.cmd oder xvfb-run nur Starter
+    sind: Beim Abbrechen muss der ganze Prozessbaum beendet werden.
+    """
+    if os.name == "nt":
+        kwargs["creationflags"] = (kwargs.get("creationflags", 0) | _creationflags()
+                                   | getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0))
+    else:
+        kwargs["start_new_session"] = True
+    return subprocess.Popen(cmd, **kwargs)
+
+
+def kill_tree(proc: subprocess.Popen) -> None:
+    """Beendet einen mit popen_group gestarteten Prozess samt Kindprozessen."""
+    if proc.poll() is not None:
+        return
+    try:
+        if os.name == "nt":
+            subprocess.run(["taskkill", "/T", "/F", "/PID", str(proc.pid)], capture_output=True,
+                           timeout=15, creationflags=_creationflags())
+        else:
+            os.killpg(proc.pid, signal.SIGKILL)
+    except (OSError, subprocess.SubprocessError):
+        pass
+    try:
+        proc.kill()
+    except OSError:
+        pass
+
+
 def _run(cmd: list[str], timeout: float, cancel: threading.Event | None,
          cwd: str | None = None) -> tuple[int | None, str]:
-    proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, cwd=cwd,
-                            creationflags=_creationflags())
+    proc = popen_group(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, cwd=cwd)
     chunks: list[bytes] = []
     reader = threading.Thread(target=lambda: chunks.append(proc.stdout.read()), daemon=True)
     reader.start()
     start = time.monotonic()
+    timed_out = False
     try:
         while proc.poll() is None:
             if cancel is not None and cancel.is_set():
-                proc.kill()
+                kill_tree(proc)
                 raise Cancelled()
             if time.monotonic() - start > timeout:
-                proc.kill()
-                reader.join(5)
-                proc.stdout.close()
-                out = b"".join(chunks).decode("utf-8", errors="replace")
-                return None, out + f"\nERROR: Zeitlimit von {int(timeout)} s überschritten – Rendern abgebrochen."
+                kill_tree(proc)
+                timed_out = True
+                break
             time.sleep(0.1)
     finally:
         if proc.poll() is None:
-            proc.kill()
-    reader.join(10)
-    proc.stdout.close()
-    return proc.returncode, b"".join(chunks).decode("utf-8", errors="replace")
+            kill_tree(proc)
+        reader.join(10)
+        if not reader.is_alive():   # nie schließen, während der Leser noch liest
+            proc.stdout.close()
+    out = b"".join(chunks).decode("utf-8", errors="replace")
+    if timed_out:
+        return None, out + f"\nERROR: Zeitlimit von {int(timeout)} s überschritten – Rendern abgebrochen."
+    return proc.returncode, out
 
 
 def parse_log(log: str) -> tuple[list[str], list[str], list[str]]:
@@ -324,13 +358,15 @@ def render_png(model_file: str | Path, out_png: str | Path, info: OpenSCADInfo, 
     """Erzeugt ein Vorschaubild. STL-Dateien werden per import() geladen (schnell)."""
     model_file, out_png = Path(model_file), Path(out_png)
     rotations = {"iso": "55,0,25", "front": "90,0,0", "top": "0,0,0", "side": "90,0,90"}
-    tmp_dir = None
+    tmp_scad = None
     scad = model_file
     if model_file.suffix.lower() == ".stl":
-        tmp_dir = tempfile.mkdtemp(prefix="scadstudio-")
-        scad = Path(tmp_dir) / "preview.scad"
-        stl_path = str(model_file.resolve()).replace("\\", "/").replace('"', '\\"')
-        scad.write_text(f'color("#d8b56d") import("{stl_path}", convexity = 10);\n', encoding="utf-8")
+        # Hilfsdatei direkt neben dem STL mit relativem Pfad – absolute Pfade mit
+        # Umlauten (C:/Users/Jürgen/…) machen OpenSCAD 2021.01 unter Windows Probleme.
+        tmp_scad = model_file.parent / f"_vorschau_{os.getpid()}_{threading.get_ident()}.scad"
+        name = model_file.name.replace('"', '\\"')
+        tmp_scad.write_text(f'color("#d8b56d") import("{name}", convexity = 10);\n', encoding="utf-8")
+        scad = tmp_scad
     cmd = [info.path, "-o", str(out_png), f"--imgsize={size[0]},{size[1]}",
            f"--camera=0,0,0,{rotations.get(view, rotations['iso'])},0", "--viewall", "--autocenter",
            "--colorscheme=Tomorrow Night", "--projection=p", str(scad)]
@@ -340,8 +376,11 @@ def render_png(model_file: str | Path, out_png: str | Path, info: OpenSCADInfo, 
     try:
         code, log = _run(cmd, timeout, cancel, cwd=str(scad.parent))
     finally:
-        if tmp_dir:
-            shutil.rmtree(tmp_dir, ignore_errors=True)
+        if tmp_scad is not None:
+            try:
+                tmp_scad.unlink()
+            except OSError:
+                pass
     result = RenderResult(ok=False, output=str(out_png), log=log, returncode=code,
                           seconds=time.monotonic() - start)
     result.errors, result.warnings, result.echoes = parse_log(log)

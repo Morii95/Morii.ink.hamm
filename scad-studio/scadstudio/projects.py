@@ -61,7 +61,14 @@ class Project:
             self.meta["updated"] = now_iso()
             tmp = self.path / "meta.json.tmp"
             tmp.write_text(json.dumps(self.meta, indent=2, ensure_ascii=False), encoding="utf-8")
-            tmp.replace(self.path / "meta.json")
+            for attempt in range(5):   # Windows: Virenscanner/Explorer halten die Datei kurz fest
+                try:
+                    tmp.replace(self.path / "meta.json")
+                    break
+                except PermissionError:
+                    if attempt == 4:
+                        raise
+                    time.sleep(0.2 * (attempt + 1))
 
     def update(self, **values: Any) -> None:
         with self._lock:

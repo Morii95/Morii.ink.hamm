@@ -38,6 +38,7 @@ DEFAULTS: dict[str, Any] = {
     # Lokal installiertes Claude Code (nutzt das Claude-Abo statt API-Schlüssel)
     "claude_cli_path": "",        # leer = automatisch suchen
     "claude_cli_model": "",       # leer = Standard, sonst z. B. opus / sonnet
+    "claude_cli_effort": "medium",  # Denktiefe: low | medium | high | xhigh | max
     # Drucker (siehe printers.py)
     "printer": "kobra2neo",
     "bed_x": 220,
@@ -61,6 +62,8 @@ DEFAULTS: dict[str, Any] = {
 }
 
 SECRET_KEYS = ("gemini_api_key", "anthropic_api_key", "openai_api_key")
+PATH_KEYS = ("openscad_path", "claude_cli_path", "projects_dir")
+NUMBER_KEYS = ("nozzle", "layer_height", "tolerance")
 
 # Umgebungsvariablen als Alternative zu gespeicherten Schlüsseln
 ENV_FALLBACKS = {
@@ -101,7 +104,10 @@ class Settings:
     def _save(self) -> None:
         self.path.parent.mkdir(parents=True, exist_ok=True)
         tmp = self.path.with_suffix(".tmp")
-        tmp.write_text(json.dumps(self._data, indent=2, ensure_ascii=False), encoding="utf-8")
+        # Nur geänderte Werte speichern – neue Standardwerte (z. B. Modellnamen)
+        # späterer Versionen kommen so automatisch an.
+        changed = {k: v for k, v in self._data.items() if v != DEFAULTS.get(k)}
+        tmp.write_text(json.dumps(changed, indent=2, ensure_ascii=False), encoding="utf-8")
         if os.name == "posix":
             os.chmod(tmp, 0o600)  # enthält API-Schlüssel
         os.replace(tmp, self.path)
@@ -134,12 +140,16 @@ class Settings:
                 if isinstance(default, bool):
                     value = bool(value)
                 elif isinstance(default, int):
-                    try:
-                        value = int(value)
+                    try:   # "220,5" / "220.5" → 220
+                        value = int(round(float(str(value).replace(",", "."))))
                     except (TypeError, ValueError):
                         continue
                 elif isinstance(default, str):
                     value = "" if value is None else str(value).strip()
+                    if key in PATH_KEYS:      # „Als Pfad kopieren“ unter Windows setzt Anführungszeichen
+                        value = value.strip('"').strip("'").strip()
+                    elif key in NUMBER_KEYS:  # deutsches Komma: 0,6 → 0.6
+                        value = value.replace(",", ".")
                 self._data[key] = value
             self._save()
 

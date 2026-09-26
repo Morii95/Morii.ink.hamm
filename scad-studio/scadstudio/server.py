@@ -12,6 +12,7 @@ import binascii
 import io
 import json
 import mimetypes
+import os
 import re
 import threading
 import urllib.parse
@@ -22,7 +23,7 @@ from pathlib import Path
 from typing import Any, Callable
 
 from . import APP_NAME, __version__, openscad, pipeline
-from .ai.providers import PROVIDER_LABELS, GeminiProvider, provider_status
+from .ai.providers import PROVIDER_LABELS, GeminiProvider, make_provider, provider_status
 from .config import (ANTHROPIC_MODELS, GEMINI_IMAGE_MODELS, GEMINI_MODELS, OPENAI_MODEL_HINTS,
                      Settings, app_home)
 from .jobs import JobError, JobManager
@@ -80,9 +81,15 @@ class Studio:
     def __init__(self, settings: Settings | None = None):
         self.settings = settings or Settings()
         self.jobs = JobManager()
+        self.project_jobs: dict[str, str] = {}   # Projekt → letzter Auftrag
         self._store: ProjectStore | None = None
         self._store_root: Path | None = None
         self._lock = threading.Lock()
+
+    def running_job(self, project_id: str) -> str | None:
+        job_id = self.project_jobs.get(project_id)
+        job = self.jobs.get(job_id) if job_id else None
+        return job.id if job and job.status == "running" else None
 
     @property
     def store(self) -> ProjectStore:
@@ -95,6 +102,10 @@ class Studio:
 
     def status(self) -> dict[str, Any]:
         info = openscad.detect(self.settings.get("openscad_path") or "")
+        try:
+            projects_dir, projects_error = str(self.settings.projects_dir()), ""
+        except OSError as exc:  # z. B. USB-Stick entfernt – Oberfläche muss trotzdem laufen
+            projects_dir, projects_error = "", f"Projektordner nicht verfügbar: {exc}"
         return {
             "app": APP_NAME,
             "version": __version__,
@@ -109,7 +120,8 @@ class Studio:
                        "anthropic": ANTHROPIC_MODELS, "openai": OPENAI_MODEL_HINTS},
             "settings": self.settings.public(),
             "home": str(app_home()),
-            "projects_dir": str(self.settings.projects_dir()),
+            "projects_dir": projects_dir,
+            "projects_error": projects_error,
         }
 
 
@@ -276,8 +288,15 @@ def make_handler(studio: Studio) -> type[BaseHTTPRequestHandler]:
             parts = [p for p in route.split("/") if p]
             settings = studio.settings
 
-            def start(kind: str, title: str, work: Callable) -> dict[str, Any]:
+            def start(kind: str, title: str, work: Callable, project=None) -> dict[str, Any]:
+                if project is not None:
+                    running = studio.running_job(project.id)
+                    if running:
+                        raise ApiError("Für dieses Projekt läuft bereits ein Vorgang – bitte warten "
+                                       "oder abbrechen.", 409)
                 job = studio.jobs.start(kind, title, work)
+                if project is not None:
+                    studio.project_jobs[project.id] = job.id
                 return {"job": job.id}
 
             def project_for(body: dict[str, Any], kind: str, default_title: str):
@@ -307,19 +326,21 @@ def make_handler(studio: Studio) -> type[BaseHTTPRequestHandler]:
                 if not instruction and not images:
                     raise ApiError("Bitte beschreibe das Objekt oder lade ein Bild hoch.")
                 decoded = [decode_data_url(i) for i in images[:6]]
+                make_provider(settings)   # fehlt z. B. der API-Schlüssel → sofort melden
                 project = project_for(body, "ai", _title_from(instruction) or "KI-Modell")
                 names = [project.add_input(*d) for d in decoded]
                 return {**start("ai", "KI-Konstruktion", lambda job: pipeline.ai_generate(
-                    job, project, settings, instruction, names)), "project_id": project.id}
+                    job, project, settings, instruction, names), project), "project_id": project.id}
 
             if parts == ["ai", "refine"]:
                 project = studio.store.get(str(body.get("project_id") or ""))
                 change = str(body.get("change") or "").strip()
                 if not change:
                     raise ApiError("Bitte beschreibe die gewünschte Änderung.")
+                make_provider(settings)
                 names = [project.add_input(*decode_data_url(i)) for i in (body.get("images") or [])[:4]]
                 return {**start("ai", "KI-Änderung", lambda job: pipeline.ai_refine(
-                    job, project, settings, change, names)), "project_id": project.id}
+                    job, project, settings, change, names), project), "project_id": project.id}
 
             if parts == ["render"]:
                 code = body.get("code")
@@ -327,7 +348,7 @@ def make_handler(studio: Studio) -> type[BaseHTTPRequestHandler]:
                     raise ApiError("Der Code ist leer.")
                 project = project_for(body, "code", "Eigener Code")
                 return {**start("render", "Rendern", lambda job: pipeline.render_code(
-                    job, project, settings, code)), "project_id": project.id}
+                    job, project, settings, code), project), "project_id": project.id}
 
             if parts == ["image", "convert"]:
                 mode = str(body.get("mode") or "")
@@ -343,7 +364,7 @@ def make_handler(studio: Studio) -> type[BaseHTTPRequestHandler]:
                     if not image_name:
                         raise ApiError("Bitte ein Bild hochladen.")
                 return {**start("image", "Bild → 3D", lambda job: pipeline.image_to_model(
-                    job, project, settings, image_name, mode, params)), "project_id": project.id}
+                    job, project, settings, image_name, mode, params), project), "project_id": project.id}
 
             if parts == ["image", "preview"]:
                 return _image_preview(body)
@@ -366,7 +387,7 @@ def make_handler(studio: Studio) -> type[BaseHTTPRequestHandler]:
                 project = studio.store.create(example["title"], "code")
                 project.write_code(code, "Beispiel")
                 return {**start("render", "Beispiel rendern", lambda job: pipeline.render_code(
-                    job, project, settings, None)), "project_id": project.id}
+                    job, project, settings, None), project), "project_id": project.id}
 
             if parts == ["projects"]:
                 project = studio.store.create(str(body.get("title") or "Neues Modell"), "code")
@@ -378,6 +399,8 @@ def make_handler(studio: Studio) -> type[BaseHTTPRequestHandler]:
                 project = studio.store.get(parts[1])
                 action = parts[2]
                 if action == "delete":
+                    if studio.running_job(project.id):
+                        raise ApiError("Für dieses Projekt läuft noch ein Vorgang.", 409)
                     studio.store.delete(project.id)
                     return {"deleted": project.id}
                 if action == "rename":
@@ -390,7 +413,7 @@ def make_handler(studio: Studio) -> type[BaseHTTPRequestHandler]:
                     return {"ok": True}
                 if action == "collisions":
                     return {**start("fit", "Passungsprüfung", lambda job: pipeline.collision_check(
-                        job, project, settings)), "project_id": project.id}
+                        job, project, settings), project), "project_id": project.id}
                 if action == "folder":
                     openscad.open_folder(project.path)
                     return {"ok": True}
@@ -406,7 +429,8 @@ def make_handler(studio: Studio) -> type[BaseHTTPRequestHandler]:
             with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
                 for path in sorted(project.path.rglob("*")):
                     rel = path.relative_to(project.path).as_posix()
-                    if path.is_file() and not rel.startswith(("versions/", "view_")) and rel != "meta.json.tmp":
+                    if path.is_file() and not rel.startswith(("versions/", "view_", "_passung")) \
+                            and not rel.endswith(".tmp"):
                         zf.write(path, rel)
             name = project.id + ".zip"
             self._send(200, buf.getvalue(), "application/zip",
@@ -490,13 +514,20 @@ def _image_preview(body: dict[str, Any]) -> dict[str, Any]:
     return {"preview": "data:image/png;base64," + base64.b64encode(buf.getvalue()).decode("ascii"), **info}
 
 
+class StudioHTTPServer(ThreadingHTTPServer):
+    # Unter Windows erlaubt SO_REUSEADDR einem zweiten Programm denselben Port –
+    # dann liefen zwei Studios auf 8765. Dort also abschalten.
+    allow_reuse_address = os.name != "nt"
+    daemon_threads = True
+
+
 def serve(host: str = "127.0.0.1", port: int = 8765, studio: Studio | None = None) -> ThreadingHTTPServer:
     studio = studio or Studio()
     handler = make_handler(studio)
     last_error: Exception | None = None
     for candidate in range(port, port + 20):
         try:
-            httpd = ThreadingHTTPServer((host, candidate), handler)
+            httpd = StudioHTTPServer((host, candidate), handler)
             httpd.daemon_threads = True
             httpd.studio = studio  # type: ignore[attr-defined]
             return httpd
