@@ -105,7 +105,9 @@ class Provider:
         return f"{self.name} ({self.model})" if self.model else self.name
 
     def complete(self, system: str, messages: list[Message], *,
-                 cancel: threading.Event | None = None, max_tokens: int = 32000) -> str:
+                 cancel: threading.Event | None = None, max_tokens: int = 32000,
+                 purpose: str = "design") -> str:
+        """purpose: "design" (Entwurf/Änderung) oder "repair"/"visual" (Nacharbeit)."""
         raise NotImplementedError
 
 
@@ -174,7 +176,7 @@ class GeminiProvider(Provider):
             raise JobError(f"Gemini hat die Anfrage blockiert ({feedback['blockReason']}).")
         return data
 
-    def complete(self, system, messages, *, cancel=None, max_tokens=32000):
+    def complete(self, system, messages, *, cancel=None, max_tokens=32000, purpose="design"):
         body = {
             "system_instruction": {"parts": [{"text": system}]},
             "contents": _gemini_contents(messages),
@@ -263,7 +265,7 @@ class AnthropicProvider(Provider):
                            "(oder die Startdatei erneut starten).") from None
         self.api_key = api_key
 
-    def complete(self, system, messages, *, cancel=None, max_tokens=32000):
+    def complete(self, system, messages, *, cancel=None, max_tokens=32000, purpose="design"):
         import anthropic
 
         client = anthropic.Anthropic(api_key=self.api_key, max_retries=2)
@@ -340,7 +342,7 @@ class OpenAICompatProvider(Provider):
         self.base_url = base_url.rstrip("/")
         self.api_key = api_key
 
-    def complete(self, system, messages, *, cancel=None, max_tokens=32000):
+    def complete(self, system, messages, *, cancel=None, max_tokens=32000, purpose="design"):
         api_messages: list[dict] = [{"role": "system", "content": system}]
         for msg in messages:
             if msg.images:
@@ -457,7 +459,7 @@ class ClaudeCodeProvider(Provider):
     def label(self) -> str:
         return f"Claude Code ({self.model or 'Standardmodell'})"
 
-    def complete(self, system, messages, *, cancel=None, max_tokens=32000):
+    def complete(self, system, messages, *, cancel=None, max_tokens=32000, purpose="design"):
         workdir = Path(tempfile.mkdtemp(prefix="scadstudio-claude-"))
         try:
             lines = [system, "", "=" * 60, ""]
@@ -486,8 +488,13 @@ class ClaudeCodeProvider(Provider):
                    "--max-turns", "12", "--add-dir", str(workdir)]
             if self.model:
                 cmd += ["--model", self.model]
-            if self.effort:   # ohne Begrenzung denkt Claude Code bei Konstruktionen sehr lange
-                cmd += ["--effort", self.effort]
+            effort = self.effort
+            if effort and purpose != "design" and effort != "low":
+                # Nacharbeit (Fehlermeldung ist konkret) mit niedriger Denktiefe – sonst
+                # grübelt Claude Code bei Geometriefehlern leicht > 10 Minuten
+                effort = "low"
+            if effort:
+                cmd += ["--effort", effort]
             env = dict(os.environ)
             env.setdefault("CLAUDE_CODE_MAX_OUTPUT_TOKENS", "64000")
             proc = popen_group(cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
@@ -514,7 +521,8 @@ class ClaudeCodeProvider(Provider):
             if proc.returncode != 0 and self.effort and "--effort" in err and "unknown" in err.lower():
                 # ältere Claude-Code-Version ohne --effort → ohne erneut versuchen
                 self.effort = ""
-                return self.complete(system, messages, cancel=cancel, max_tokens=max_tokens)
+                return self.complete(system, messages, cancel=cancel, max_tokens=max_tokens,
+                                     purpose=purpose)
             if proc.returncode != 0 or result.get("is_error") or not text.strip():
                 detail = str(result.get("error") or result.get("subtype") or err.strip()
                              or out.strip())[-400:]

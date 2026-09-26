@@ -434,10 +434,14 @@ def _load_images(project: Project, names: list[str]) -> list[Image]:
     return images
 
 
-def _ask(job: Job, provider, system: str, messages: list[Message], what: str) -> str:
+def _ask(job: Job, provider, system: str, messages: list[Message], what: str,
+         purpose: str = "design") -> str:
     job.info(f"{what} ({provider.label()}) …")
     start = time.monotonic()
-    text = provider.complete(system, messages, cancel=job.cancel_event)
+    try:
+        text = provider.complete(system, messages, cancel=job.cancel_event, purpose=purpose)
+    except TypeError:   # Anbieter ohne purpose-Parameter (z. B. Test-Attrappe)
+        text = provider.complete(system, messages, cancel=job.cancel_event)
     job.info(f"Antwort nach {time.monotonic() - start:.0f} s erhalten.")
     return text
 
@@ -459,7 +463,7 @@ def _run_ai_loop(job: Job, project: Project, settings: Settings, provider, syste
         messages.append(_answer(provider, text))
         messages.append(Message("user", "Bitte liefere jetzt die vollständige OpenSCAD-Datei in "
                                         "einem ```openscad Code-Block."))
-        text = _ask(job, provider, system, messages, "Code wird nachgefordert")
+        text = _ask(job, provider, system, messages, "Code wird nachgefordert", purpose="repair")
         code, explanation = prompts.extract_code(text)
         if not code:
             project.add_chat("assistant", text)
@@ -494,7 +498,7 @@ def _run_ai_loop(job: Job, project: Project, settings: Settings, provider, syste
             job.info(f"Automatische Reparatur {attempt}/{repair_attempts}: "
                      f"{len(problems)} Problem(e) gehen zurück an die KI …")
             messages.append(Message("user", prompts.repair_text(problems)))
-            text = _ask(job, provider, system, messages, "KI repariert")
+            text = _ask(job, provider, system, messages, "KI repariert", purpose="repair")
             new_code, new_expl = prompts.extract_code(text)
             messages.append(_answer(provider, text))
             if not new_code:
@@ -513,7 +517,8 @@ def _run_ai_loop(job: Job, project: Project, settings: Settings, provider, syste
             break
         messages.append(Message("user", prompts.visual_text("isometrisch, vorne, oben", has_refs),
                                 images=[Image(composite, "image/png", "Renderings des aktuellen Modells:")]))
-        text = _ask(job, provider, system, messages, f"KI prüft das Ergebnis visuell ({round_no}/{visual_rounds})")
+        text = _ask(job, provider, system, messages,
+                    f"KI prüft das Ergebnis visuell ({round_no}/{visual_rounds})", purpose="visual")
         messages.append(_answer(provider, text))
         if prompts.is_approval(text):
             job.info("Visuelle Selbstprüfung: Die KI ist mit dem Ergebnis zufrieden.", "success")
@@ -525,7 +530,8 @@ def _run_ai_loop(job: Job, project: Project, settings: Settings, provider, syste
             job.info("Sichtprüfung: " + " ".join(text.split())[:300])
             messages.append(Message("user", "Bitte behebe die genannten Mängel und liefere jetzt die "
                                             "vollständige verbesserte Datei in einem ```openscad Code-Block."))
-            text = _ask(job, provider, system, messages, "Verbesserte Datei wird nachgefordert")
+            text = _ask(job, provider, system, messages, "Verbesserte Datei wird nachgefordert",
+                        purpose="visual")
             messages.append(_answer(provider, text))
             new_code, new_expl = prompts.extract_code(text)
             if not new_code:
