@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SCAD Studio</title>
+  <meta name="color-scheme" content="dark">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M16 3 28 10v12L16 29 4 22V10z' fill='%23d4af37'/%3E%3Cpath d='M16 3v26M4 10l12 7 12-7' stroke='%23111' stroke-width='2' fill='none'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <svg viewBox="0 0 32 32" aria-hidden="true"><path d="M16 3 28 10v12L16 29 4 22V10z" fill="currentColor"/><path d="M16 3v26M4 10l12 7 12-7" stroke="#0b0b0e" stroke-width="2" fill="none"/></svg>
+    <span>SCAD Studio</span>
+  </div>
+  <div class="project-title">
+    <input id="project-title" type="text" placeholder="Neues Modell" aria-label="Projektname" spellcheck="false">
+  </div>
+  <div class="chips" id="status-chips"></div>
+  <nav class="top-actions">
+    <button class="btn ghost" id="btn-new" title="Neues Projekt beginnen">Neu</button>
+    <button class="btn ghost" id="btn-projects">Projekte</button>
+    <button class="btn ghost" id="btn-settings">Einstellungen</button>
+  </nav>
+</header>
+
+<main class="layout">
+  <!-- ============ Linke Spalte: Werkzeuge ============ -->
+  <section class="panel tools">
+    <div class="tabs" role="tablist">
+      <button role="tab" data-tab="ai" class="active">KI-Konstrukteur</button>
+      <button role="tab" data-tab="image">Bild → 3D</button>
+      <button role="tab" data-tab="imagegen">Bild erzeugen</button>
+      <button role="tab" data-tab="code">Code</button>
+    </div>
+
+    <!-- KI-Konstrukteur -->
+    <div class="tab-body active" data-tab-body="ai">
+      <div class="chat" id="chat"></div>
+
+      <div id="ai-new">
+        <label class="label" for="ai-instruction">Was soll gebaut werden?</label>
+        <textarea id="ai-instruction" rows="5" placeholder="z. B. Modulare Stehlampe: Dreibein mit Steckverbindung, Körper aus 3 leicht verdrehten Segmenten mit M24-Gewinde, Kabelkanal Ø 8 mm, Schirm 120 × 120 mm mit Magnethalterung …"></textarea>
+        <div class="dropzone" id="ai-drop" tabindex="0">
+          <input type="file" id="ai-files" accept="image/*" multiple hidden>
+          <span>Referenzbilder hierher ziehen, einfügen (Strg+V) oder <u>auswählen</u></span>
+        </div>
+        <div class="thumbs" id="ai-thumbs"></div>
+        <div class="hint" id="ai-provider-hint"></div>
+        <button class="btn primary wide" id="btn-generate">Modell erstellen</button>
+      </div>
+
+      <div id="ai-refine" hidden>
+        <div class="suggestions" id="refine-suggestions"></div>
+        <label class="label" for="refine-text">Änderung beschreiben</label>
+        <textarea id="refine-text" rows="3" placeholder="z. B. Beine 20 mm länger, Gewinde M30 statt M24, Schirm mit Wellen-Textur …"></textarea>
+        <div class="dropzone small" id="refine-drop" tabindex="0">
+          <input type="file" id="refine-files" accept="image/*" multiple hidden>
+          <span>Optional: weiteres Bild hinzufügen</span>
+        </div>
+        <div class="thumbs" id="refine-thumbs"></div>
+        <div class="row">
+          <button class="btn primary grow" id="btn-refine">Änderung umsetzen</button>
+          <button class="btn ghost" id="btn-ai-new" title="Neues KI-Modell beginnen">Neues Modell</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bild → 3D -->
+    <div class="tab-body" data-tab-body="image">
+      <div class="dropzone tall" id="img-drop" tabindex="0">
+        <input type="file" id="img-file" accept="image/*" hidden>
+        <img id="img-source" alt="" hidden>
+        <span id="img-drop-text">Bild hierher ziehen, einfügen oder <u>auswählen</u><br><small>z. B. Logo, Tattoo-Motiv, Silhouette, Foto, Tiefenkarte aus Gemini</small></span>
+      </div>
+      <label class="label">Umwandlung</label>
+      <div class="modes" id="img-modes"></div>
+      <div class="mode-help" id="img-mode-help"></div>
+      <div class="form" id="img-params"></div>
+      <div class="preview-box" id="img-preview-box" hidden>
+        <img id="img-preview" alt="Vorschau der Umwandlung">
+        <div class="hint" id="img-preview-info"></div>
+      </div>
+      <button class="btn primary wide" id="btn-convert">In 3D umwandeln</button>
+    </div>
+
+    <!-- Bild erzeugen (Gemini) -->
+    <div class="tab-body" data-tab-body="imagegen">
+      <p class="hint">Erzeugt Bilder mit Google Gemini (Nano Banana). Die Vorlagen sind so formuliert, dass sich das Ergebnis gut in 3D umwandeln lässt.</p>
+      <label class="label" for="gen-preset">Vorlage</label>
+      <select id="gen-preset"></select>
+      <label class="label" for="gen-prompt">Beschreibung</label>
+      <textarea id="gen-prompt" rows="4" placeholder="z. B. ein Koi-Fisch mit Lotusblüte"></textarea>
+      <div class="dropzone small" id="gen-drop" tabindex="0">
+        <input type="file" id="gen-file" accept="image/*" hidden>
+        <span>Optional: Eingabebild (für Umwandlung/Bearbeitung)</span>
+      </div>
+      <div class="thumbs" id="gen-thumbs"></div>
+      <div class="row">
+        <label class="label inline" for="gen-aspect">Format</label>
+        <select id="gen-aspect">
+          <option value="1:1">1:1 quadratisch</option>
+          <option value="3:4">3:4 hoch</option>
+          <option value="4:3">4:3 quer</option>
+          <option value="9:16">9:16 hoch</option>
+          <option value="16:9">16:9 quer</option>
+        </select>
+      </div>
+      <button class="btn primary wide" id="btn-imagegen">Bild erzeugen</button>
+      <div class="gen-result" id="gen-result" hidden>
+        <img id="gen-image" alt="Erzeugtes Bild">
+        <div class="row wrap">
+          <button class="btn" id="gen-to-image">→ Bild → 3D</button>
+          <button class="btn" id="gen-to-ai">→ KI-Konstrukteur</button>
+          <a class="btn ghost" id="gen-download" download="gemini-bild.png">Speichern</a>
+        </div>
+      </div>
+    </div>
+
+    <!-- Code -->
+    <div class="tab-body" data-tab-body="code">
+      <div class="editor">
+        <pre class="gutter" id="code-gutter" aria-hidden="true">1</pre>
+        <textarea id="code" spellcheck="false" wrap="off" placeholder="// OpenSCAD-Code hier eingeben oder von der KI erzeugen lassen"></textarea>
+      </div>
+      <div class="row wrap">
+        <button class="btn primary grow" id="btn-render" title="Strg+Enter">Rendern &amp; prüfen</button>
+        <select id="code-versions" title="Frühere Versionen"><option value="">Versionen …</option></select>
+      </div>
+      <p class="hint">Tipp: In OpenSCAD über <b>Fenster → Customizer</b> lassen sich alle Parameter (Maße, Spaltmaß, Drucker, Teil-Auswahl) bequem ändern.</p>
+    </div>
+  </section>
+
+  <!-- ============ Mitte: 3D-Ansicht ============ -->
+  <section class="panel stage">
+    <div class="viewer" id="viewer"></div>
+    <div class="viewer-toolbar">
+      <div class="seg" id="view-buttons">
+        <button data-view="iso" title="Isometrisch">Iso</button>
+        <button data-view="front" title="Vorne">Vorne</button>
+        <button data-view="side" title="Seite">Seite</button>
+        <button data-view="top" title="Oben">Oben</button>
+      </div>
+      <label class="toggle"><input type="checkbox" id="opt-dims" checked> Maße</label>
+      <label class="toggle"><input type="checkbox" id="opt-bed" checked> Druckbett</label>
+      <label class="toggle"><input type="checkbox" id="opt-wire"> Kanten</label>
+      <label class="toggle"><input type="checkbox" id="opt-xray"> Röntgen</label>
+      <label class="toggle clip"><input type="checkbox" id="opt-clip"> Schnitt <input type="range" id="opt-clip-z" min="0" max="100" value="50" disabled></label>
+      <button class="btn ghost small" id="btn-shot" title="Bild speichern">📷</button>
+    </div>
+    <div class="viewer-source" id="viewer-source"></div>
+    <div class="empty-stage" id="empty-stage">
+      <h2>Willkommen im SCAD Studio</h2>
+      <p>Beschreibe ein Objekt, lade ein Bild hoch oder erzeuge eines mit Gemini – das Studio schreibt den OpenSCAD-Code, rendert ihn mit deiner OpenSCAD-Installation und prüft jedes Teil auf Druckbarkeit.</p>
+    </div>
+  </section>
+
+  <!-- ============ Rechte Spalte: Prüfung & Druck ============ -->
+  <section class="panel report">
+    <h3>Prüfung &amp; Druck</h3>
+    <div id="report-summary" class="report-summary muted">Noch kein Modell gerendert.</div>
+    <div id="report-model"></div>
+    <div id="report-parts"></div>
+    <div id="report-fit"></div>
+    <div id="report-issues"></div>
+    <div class="downloads" id="downloads" hidden>
+      <a class="btn" id="dl-stl" download>STL (Gesamt)</a>
+      <a class="btn" id="dl-scad" download>.scad</a>
+      <a class="btn" id="dl-zip" download>Alles als ZIP</a>
+      <button class="btn" id="btn-open-openscad">In OpenSCAD öffnen</button>
+      <button class="btn ghost" id="btn-open-folder">Ordner öffnen</button>
+    </div>
+  </section>
+</main>
+
+<!-- ============ Protokoll ============ -->
+<footer class="logbar" id="logbar">
+  <div class="logbar-head">
+    <button class="btn ghost small" id="btn-log-toggle" aria-expanded="false">Protokoll</button>
+    <div class="progress" id="progress" hidden><div class="progress-bar" id="progress-bar"></div></div>
+    <span class="job-status" id="job-status"></span>
+    <button class="btn danger small" id="btn-cancel" hidden>Abbrechen</button>
+  </div>
+  <div class="log" id="log" hidden></div>
+</footer>
+
+<!-- ============ Dialoge ============ -->
+<dialog id="dlg-projects" class="dialog wide">
+  <header><h2>Projekte</h2><button class="btn ghost small" data-close>Schließen</button></header>
+  <div class="projects-grid" id="projects-grid"></div>
+  <h3 class="dialog-sub">Beispiele</h3>
+  <div class="projects-grid" id="examples-grid"></div>
+</dialog>
+
+<dialog id="dlg-settings" class="dialog">
+  <header><h2>Einstellungen</h2><button class="btn ghost small" data-close>Schließen</button></header>
+  <form id="settings-form" class="settings" method="dialog">
+    <fieldset>
+      <legend>KI für die Konstruktion</legend>
+      <div class="radio-row" id="provider-radios"></div>
+      <div class="provider-box" data-provider="gemini">
+        <p class="hint">Kostenloser Schlüssel: <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a>. Wird auch für „Bild erzeugen“ benötigt.</p>
+        <label class="label">API-Schlüssel <input type="password" name="gemini_api_key" autocomplete="off"></label>
+        <label class="label">Modell (Code) <input name="gemini_model" list="dl-gemini"></label>
+        <label class="label">Modell (Bilder) <input name="gemini_image_model" list="dl-gemini-image"></label>
+        <button type="button" class="btn small" id="btn-gemini-models">Verfügbare Modelle abrufen</button>
+      </div>
+      <div class="provider-box" data-provider="anthropic">
+        <p class="hint">Schlüssel unter <a href="https://platform.claude.com" target="_blank" rel="noopener">platform.claude.com</a>.</p>
+        <label class="label">API-Schlüssel <input type="password" name="anthropic_api_key" autocomplete="off"></label>
+        <label class="label">Modell <input name="anthropic_model" list="dl-anthropic"></label>
+      </div>
+      <div class="provider-box" data-provider="openai">
+        <p class="hint">OpenAI, OpenRouter, LM Studio oder <b>Ollama</b> (lokal, kostenlos: <code>http://localhost:11434/v1</code>).</p>
+        <label class="label">Basis-URL <input name="openai_base_url"></label>
+        <label class="label">API-Schlüssel (optional) <input type="password" name="openai_api_key" autocomplete="off"></label>
+        <label class="label">Modell <input name="openai_model" list="dl-openai"></label>
+      </div>
+      <div class="provider-box" data-provider="claude_cli">
+        <p class="hint">Nutzt dein lokal installiertes <b>Claude Code</b> (Abo statt API-Schlüssel). Einmal „claude“ im Terminal starten und anmelden.</p>
+        <label class="label">Pfad (leer = automatisch) <input name="claude_cli_path" placeholder="automatisch"></label>
+        <label class="label">Modell (leer = Standard) <input name="claude_cli_model" placeholder="z. B. opus oder sonnet"></label>
+      </div>
+      <div class="grid2">
+        <label class="label">Auto-Reparaturen <input type="number" name="repair_attempts" min="0" max="8"></label>
+        <label class="label">Visuelle Selbstprüfungen <input type="number" name="visual_rounds" min="0" max="5"></label>
+      </div>
+      <label class="label">Passungsprüfung nach jedem KI-Schritt
+        <select name="fit_check">
+          <option value="auto">automatisch (nur mit schnellem Manifold-Backend)</option>
+          <option value="on">immer (kann mit OpenSCAD 2021.01 mehrere Minuten dauern)</option>
+          <option value="off">aus (nur per Knopf im Prüfbericht)</option>
+        </select>
+      </label>
+    </fieldset>
+    <fieldset>
+      <legend>Drucker</legend>
+      <label class="label">Profil <select name="printer" id="printer-select"></select></label>
+      <div class="grid3" id="custom-bed">
+        <label class="label">Bett X <input type="number" name="bed_x" min="50" max="1000"></label>
+        <label class="label">Bett Y <input type="number" name="bed_y" min="50" max="1000"></label>
+        <label class="label">Höhe Z <input type="number" name="bed_z" min="50" max="1000"></label>
+      </div>
+      <div class="grid3">
+        <label class="label">Düse (mm) <input name="nozzle"></label>
+        <label class="label">Schichthöhe <input name="layer_height"></label>
+        <label class="label">Spaltmaß (mm) <input name="tolerance"></label>
+      </div>
+      <label class="label">Material <select name="material"><option>PLA</option><option>PETG</option><option>ASA</option><option>ABS</option><option>TPU</option></select></label>
+    </fieldset>
+    <fieldset>
+      <legend>OpenSCAD</legend>
+      <div class="hint" id="openscad-info"></div>
+      <label class="label">Pfad (leer = automatisch) <input name="openscad_path" placeholder="automatisch"></label>
+      <label class="check"><input type="checkbox" name="use_manifold"> Schnelles Manifold-Backend verwenden (wenn vorhanden)</label>
+      <label class="label">Zeitlimit pro Rendering (s) <input type="number" name="render_timeout" min="30" max="7200"></label>
+      <label class="label">Projektordner (leer = Standard) <input name="projects_dir" placeholder="automatisch"></label>
+    </fieldset>
+    <div class="row end">
+      <button class="btn primary" id="btn-save-settings" value="save">Speichern</button>
+    </div>
+  </form>
+  <datalist id="dl-gemini"></datalist>
+  <datalist id="dl-gemini-image"></datalist>
+  <datalist id="dl-anthropic"></datalist>
+  <datalist id="dl-openai"></datalist>
+</dialog>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script src="/static/viewer.js"></script>
+<script src="/static/app.js"></script>
+</body>
+</html>
