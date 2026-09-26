@@ -38,7 +38,7 @@ DEFAULTS: dict[str, Any] = {
     # Lokal installiertes Claude Code (nutzt das Claude-Abo statt API-Schlüssel)
     "claude_cli_path": "",        # leer = automatisch suchen
     "claude_cli_model": "",       # leer = Standard, sonst z. B. opus / sonnet
-    "claude_cli_effort": "medium",  # Denktiefe: low | medium | high | xhigh | max
+    "claude_cli_effort": "low",   # Denktiefe: low | medium | high | xhigh | max
     # Drucker (siehe printers.py)
     "printer": "kobra2neo",
     "bed_x": 220,

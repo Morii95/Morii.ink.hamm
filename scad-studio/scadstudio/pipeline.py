@@ -502,10 +502,21 @@ def _run_ai_loop(job: Job, project: Project, settings: Settings, provider, syste
         messages.append(_answer(provider, text))
         if prompts.is_approval(text):
             job.info("Visuelle Selbstprüfung: Die KI ist mit dem Ergebnis zufrieden.", "success")
+            project.add_chat("assistant", "Sichtprüfung: passt.")
             break
         new_code, new_expl = prompts.extract_code(text)
         if not new_code:
-            break
+            # Mängel genannt, aber keine Datei geliefert → einmal nachfordern
+            job.info("Sichtprüfung: " + " ".join(text.split())[:300])
+            messages.append(Message("user", "Bitte behebe die genannten Mängel und liefere jetzt die "
+                                            "vollständige verbesserte Datei in einem ```openscad Code-Block."))
+            text = _ask(job, provider, system, messages, "Verbesserte Datei wird nachgefordert")
+            messages.append(_answer(provider, text))
+            new_code, new_expl = prompts.extract_code(text)
+            if not new_code:
+                project.add_chat("assistant", "Sichtprüfung: " + text.strip()[:1500])
+                job.warn("Die KI hat nach der Sichtprüfung keine verbesserte Datei geliefert.")
+                break
         job.info("Die KI verbessert das Modell nach der Sichtprüfung …")
         code, check = apply(new_code, new_expl, f"Sichtprüfung {round_no}")
 

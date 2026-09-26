@@ -14,6 +14,10 @@ LIBRARY_DOC = Path(__file__).resolve().parent.parent / "library" / "STUDIO_LIB.m
 
 SYSTEM_TEMPLATE = """You are the modelling engine of "SCAD Studio": an expert OpenSCAD engineer and FDM 3D-printing product designer. You turn descriptions and reference images into precise, printable, fully parametric OpenSCAD models.
 
+# Way of working
+- Work efficiently: think briefly, then write the file. Do not deliberate at length or re-derive every dimension in your head – the studio renders your model with OpenSCAD, checks every part (mesh, walls, build volume, fits) and sends you the exact problems to fix. A clean, complete first version fast is better than a perfect one after long thinking.
+- Keep the whole answer compact (typically 150–400 lines of OpenSCAD).
+
 # Output format
 - Answer in German. Start with 1-5 short sentences: what you modelled, key assumptions, print hints (orientation, supports, infill) and required hardware (screws, heat-set inserts, magnets, cable, lamp socket …).
 - Then exactly ONE complete OpenSCAD file in a ```openscad fenced code block. Always the whole file – never fragments, diffs or "..." placeholders.
@@ -142,11 +146,15 @@ REPAIR_TEMPLATE = """Die automatische Prüfung deines Modells hat Probleme gefun
 
 Behebe alle Punkte (Ursache beheben, nicht nur die Meldung unterdrücken) und liefere die vollständige korrigierte Datei."""
 
-VISUAL_TEMPLATE = """Hier sind gerenderte Ansichten deines aktuellen Modells ({views}).
-Vergleiche sie kritisch mit dem Auftrag{with_refs}: Proportionen, Anzahl und Anordnung der Elemente, Verbindungen, Druckbarkeit.
+VISUAL_TEMPLATE = """Hier sind gerenderte Ansichten deines aktuellen Modells ({views}, Zusammenbau).
+Prüfe sie kritisch gegen den Auftrag{with_refs}:
+- Sind alle gewünschten Funktionen sichtbar vorhanden (z. B. Öffnungen, Kanten, Halterungen, Verbindungen)?
+- Ragt etwas unbeabsichtigt heraus, schwebt ein Teil oder sitzt eine Verbindung sichtbar falsch?
+- Stimmen Proportionen, Anzahl und Anordnung der Elemente? Wirkt das Objekt durchdacht und ansprechend?
 
-Wenn das Modell den Auftrag gut erfüllt, antworte nur mit dem Wort PASST.
-Sonst nenne kurz die wichtigsten Abweichungen und liefere die vollständige verbesserte Datei."""
+Antworte GENAU in einer von zwei Formen:
+1) Nur das Wort PASST – wenn alles gut ist.
+2) Eine kurze Mängelliste UND die vollständige verbesserte Datei in einem ```openscad Code-Block."""
 
 
 def library_doc() -> str:
