@@ -124,7 +124,8 @@ def render_and_check(job: Job, project: Project, settings: Settings, *,
 
     check = _analyze(project.stl_file, printer, bed_check=not parts)
     result["check"] = check
-    _log_check(job, "Gesamtmodell", check)
+    # Bei mehrteiligen Modellen ist der Zusammenbau nur Ansicht: nur Maße protokollieren
+    _log_check(job, "Zusammenbau" if parts else "Gesamtmodell", check, issues=not parts)
     if not parts:
         # Einteiliges Modell: das Gesamtmodell ist das Druckteil.
         # Bei mehrteiligen Modellen zählen nur die einzelnen Druckteile (unten) –
@@ -199,11 +200,13 @@ def _only_empty(res: openscad.RenderResult) -> bool:
             and all("leer" in e for e in res.errors) and not res.serious_warnings)
 
 
-def _log_check(job: Job, name: str, check: dict[str, Any]) -> None:
+def _log_check(job: Job, name: str, check: dict[str, Any], issues: bool = True) -> None:
     size = check.get("size")
     if size:
-        job.info(f"{name}: {size[0]:.1f} × {size[1]:.1f} × {size[2]:.1f} mm, "
-                 f"{check.get('triangles', 0):,} Dreiecke".replace(",", "."))
+        triangles = f"{check.get('triangles', 0):,}".replace(",", ".")
+        job.info(f"{name}: {size[0]:.1f} × {size[1]:.1f} × {size[2]:.1f} mm, {triangles} Dreiecke")
+    if not issues:
+        return
     for issue in check.get("issues", []):
         level = {"error": "error", "warning": "warning"}.get(issue.get("level"), "info")
         job.info(f"{name}: {issue['text']}", level)

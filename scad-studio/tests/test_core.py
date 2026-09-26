@@ -67,6 +67,31 @@ class PromptTests(unittest.TestCase):
         self.assertIn("bed = [220, 220, 250]", text)
 
 
+class ClaudeStreamTests(unittest.TestCase):
+    def test_continuation_is_joined(self):
+        from scadstudio.ai.providers import parse_claude_stream
+        events = [
+            {"type": "system", "subtype": "init"},
+            {"type": "assistant", "message": {"id": "m1", "content": [
+                {"type": "thinking", "thinking": ""},
+                {"type": "text", "text": "Erklärung\n```openscad\na = 1;\nb = "}]}},
+            {"type": "user", "message": {"content": "Output token limit hit"}},
+            {"type": "assistant", "message": {"id": "m2", "content": [
+                {"type": "text", "text": "2;\ncube(a + b);\n```"}]}},
+            {"type": "result", "subtype": "success", "is_error": False, "result": "2;\ncube(a + b);\n```"},
+        ]
+        out = "\n".join(json.dumps(e) for e in events) + "\nkein json\n"
+        text, result = parse_claude_stream(out)
+        code, _ = prompts.extract_code(text)
+        self.assertEqual(code, "a = 1;\nb = 2;\ncube(a + b);\n")
+        self.assertFalse(result["is_error"])
+
+    def test_falls_back_to_result(self):
+        from scadstudio.ai.providers import parse_claude_stream
+        text, _ = parse_claude_stream(json.dumps({"type": "result", "result": "PASST"}))
+        self.assertEqual(text, "PASST")
+
+
 class SettingsTests(unittest.TestCase):
     def test_secret_semantics(self):
         settings = Settings(Path(_HOME) / "s2.json")

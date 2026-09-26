@@ -237,7 +237,7 @@
       renderProviderHint();
       fillSettings();
       fillPresets();
-      if (state.viewer && state.viewer.setBed && $('#opt-bed').checked) state.viewer.setBed(status.printer.bed);
+      updateBed();
       return status;
     }).catch(function (err) { toast('Server nicht erreichbar: ' + err.message, true); });
   }
@@ -317,9 +317,7 @@
     });
     $('#opt-dims').addEventListener('change', function (e) { callViewer('setShowDimensions', e.target.checked); });
     $('#opt-wire').addEventListener('change', function (e) { callViewer('setWireframe', e.target.checked); });
-    $('#opt-bed').addEventListener('change', function (e) {
-      callViewer('setBed', e.target.checked && state.status ? state.status.printer.bed : null);
-    });
+    $('#opt-bed').addEventListener('change', updateBed);
     $('#opt-clip').addEventListener('change', function (e) {
       $('#opt-clip-z').disabled = !e.target.checked;
       applyClip();
@@ -332,6 +330,15 @@
       var a = el('a', { href: shot, download: ((state.project && state.project.id) || 'modell') + '.png' });
       document.body.appendChild(a); a.click(); a.remove();
     });
+  }
+
+  // Druckbett nur dort zeigen, wo es aussagekräftig ist: bei einteiligen Modellen
+  // und bei einzelnen Druckteilen – ein Zusammenbau wird ja nie am Stück gedruckt.
+  function updateBed() {
+    var multiPart = !!(state.project && state.project.parts && state.project.parts.some(function (p) { return !p.unused; }));
+    var assemblyView = !state.viewing || state.viewing.kind === 'model';
+    var show = $('#opt-bed').checked && state.status && !(multiPart && assemblyView);
+    callViewer('setBed', show ? state.status.printer.bed : null);
   }
 
   function callViewer(method) {
@@ -359,6 +366,7 @@
     // Gleiches Modell neu gerendert → Kameraposition behalten
     var keepView = state.lastViewUrl === url;
     state.lastViewUrl = url;
+    updateBed();
     return state.viewer.loadUrl(url + (url.indexOf('?') < 0 ? '?' : '&') + 't=' + Date.now(), { keepView: keepView }).then(function () {
       applyClip();
       highlightPart();
@@ -997,8 +1005,9 @@
     summary.textContent = hasErr ? '⚠ ' + problems.length + ' Hinweis(e) – bitte prüfen.' : '✓ Druckbereit: Netz geschlossen, Teile passen aufs Druckbett.';
 
     var c = p.check;
+    var multiPart = (p.parts || []).some(function (part) { return !part.unused; });
     if (c) {
-      modelBox.appendChild(el('h4', { text: 'Gesamtmodell' }));
+      modelBox.appendChild(el('h4', { text: multiPart ? 'Zusammenbau (nur Ansicht)' : 'Gesamtmodell' }));
       var kv = el('dl', { class: 'kv' });
       [['Maße', sizeText(c.size)], ['Volumen', fmt(c.volume_cm3, 1) + ' cm³'],
        ['Dreiecke', fmt(c.triangles)], ['Körper', c.shells], ['Renderzeit', fmt(render.seconds, 1) + ' s']].forEach(function (row) {
@@ -1006,7 +1015,12 @@
         kv.appendChild(el('dd', { text: String(row[1]) }));
       });
       modelBox.appendChild(kv);
-      modelBox.appendChild(el('div', { class: 'part-flags' }, checkFlags(c)));
+      if (multiPart) {
+        // Im Zusammenbau berühren sich Teile gewollt – maßgeblich sind die Druckteile
+        modelBox.appendChild(el('p', { class: 'hint', text: 'Gedruckt werden die einzelnen Druckteile unten – sie werden jeweils einzeln geprüft.' }));
+      } else {
+        modelBox.appendChild(el('div', { class: 'part-flags' }, checkFlags(c)));
+      }
       var card = el('div', { class: 'part' + (state.viewing && state.viewing.kind === 'model' ? ' active' : ''), 'data-part': '__model',
         onclick: function () { showInViewer('/files/' + p.id + '/model.stl', 'Gesamtmodell', { kind: 'model' }); } },
         [el('div', { class: 'part-head' }, [el('span', { class: 'part-name', text: 'Zusammenbau ansehen' })])]);
@@ -1048,10 +1062,10 @@
     renderFit(p);
 
     var issues = [];
-    if (c && c.issues) issues = issues.concat(c.issues);
+    if (c && c.issues && !multiPart) issues = issues.concat(c.issues);
     (render.warnings || []).slice(0, 10).forEach(function (w) { issues.push({ level: 'warning', text: w }); });
     if (issues.length) {
-      issuesBox.appendChild(el('h4', { text: parts.length ? 'Hinweise zum Zusammenbau' : 'Hinweise' }));
+      issuesBox.appendChild(el('h4', { text: multiPart ? 'OpenSCAD-Hinweise' : 'Hinweise' }));
       issuesBox.appendChild(issueList(issues));
     }
     highlightPart();
@@ -1249,7 +1263,7 @@
       state.status = status;
       renderChips();
       renderProviderHint();
-      if ($('#opt-bed').checked) callViewer('setBed', status.printer.bed);
+      updateBed();
       $('#dlg-settings').close();
       toast('Einstellungen gespeichert.');
     }).catch(function (err) { toast(err.message, true); });

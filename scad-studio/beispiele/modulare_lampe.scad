@@ -453,6 +453,12 @@ module placed(id) {
         translate([lock_x, 0, seat - iso_socket_head(lock_screw)[1]])
             cylinder(d = iso_socket_head(lock_screw)[0], h = iso_socket_head(lock_screw)[1] - eps);
     }
+    // Stehlampe: M3-Senkschrauben (von unten) in die Einsätze der Beinverbinder
+    if (id == "hw_screws" && is_floor) for (k = [0 : 2], s = [-1, 1]) translate([0, 0, hub_z]) leg_frame(k)
+        translate([leg_split + s * coupler_len / 4, 0, leg_w]) mirror([0, 0, 1]) {
+            cylinder(d1 = 5.5, d2 = 2.9, h = 1.6);          // Senkkopf (ISO 10642, leicht kleiner)
+            cylinder(d = 2.9, h = 10);                      // Schaft M3×10
+        }
     if (id == "hw_magnets") for (s = [0 : 3]) rotate(r_cube + 90 * s) {
         translate([mag_r, 0, cube_top + holder_z + holder_t - magnet_h]) cylinder(d = magnet_d, h = magnet_h - eps);
         translate([mag_r, 0, shade_z + eps]) cylinder(d = magnet_d, h = magnet_h - eps);

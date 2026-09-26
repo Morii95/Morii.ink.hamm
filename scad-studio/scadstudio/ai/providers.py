@@ -402,6 +402,38 @@ def find_claude_cli(custom: str = "") -> str | None:
     return None
 
 
+def parse_claude_stream(output: str) -> tuple[str, dict[str, Any]]:
+    """Wertet `claude -p --output-format stream-json` aus.
+
+    Liefert (gesamter Antworttext, result-Ereignis). Alle Textblöcke aller
+    Assistenten-Nachrichten werden in Reihenfolge verbunden – so bleibt eine
+    Antwort vollständig, die über das Ausgabelimit hinaus fortgesetzt wurde.
+    """
+    parts: list[str] = []
+    seen: set[tuple[str, str]] = set()
+    result: dict[str, Any] = {}
+    for line in output.splitlines():
+        line = line.strip()
+        if not line.startswith("{"):
+            continue
+        try:
+            event = json.loads(line)
+        except ValueError:
+            continue
+        if event.get("type") == "assistant":
+            message = event.get("message") or {}
+            for block in message.get("content") or []:
+                if block.get("type") == "text" and block.get("text"):
+                    key = (str(message.get("id", "")), block["text"])
+                    if key not in seen:
+                        seen.add(key)
+                        parts.append(block["text"])
+        elif event.get("type") == "result":
+            result = event
+    text = "".join(parts) if parts else str(result.get("result") or "")
+    return text, result
+
+
 class ClaudeCodeProvider(Provider):
     """Nutzt das lokal installierte Claude Code im Druckmodus.
 
@@ -442,14 +474,21 @@ class ClaudeCodeProvider(Provider):
             lines.append("Antworte jetzt direkt mit deiner Antwort (keine Dateien schreiben, "
                          "keine Befehle ausführen).")
             prompt = "\n".join(lines)
-            cmd = [self.exe, "-p", "--output-format", "json", "--allowedTools", "Read",
+            # stream-json liefert jede Teilantwort einzeln. Wichtig, wenn Claude Code das
+            # Ausgabelimit erreicht und in einer zweiten Nachricht weiterschreibt – das
+            # einfache json-Format enthält dann nur den letzten Teil.
+            cmd = [self.exe, "-p", "--output-format", "stream-json", "--verbose",
+                   "--allowedTools", "Read",
                    "--disallowedTools", "Bash,Edit,Write,NotebookEdit,WebFetch,WebSearch",
                    "--max-turns", "12", "--add-dir", str(workdir)]
             if self.model:
                 cmd += ["--model", self.model]
+            env = dict(os.environ)
+            env.setdefault("CLAUDE_CODE_MAX_OUTPUT_TOKENS", "64000")
             flags = getattr(subprocess, "CREATE_NO_WINDOW", 0) if os.name == "nt" else 0
             proc = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
-                                    stderr=subprocess.PIPE, cwd=str(workdir), creationflags=flags)
+                                    stderr=subprocess.PIPE, cwd=str(workdir), env=env,
+                                    creationflags=flags)
             box: dict[str, Any] = {}
 
             def talk() -> None:
@@ -468,23 +507,15 @@ class ClaudeCodeProvider(Provider):
                 thread.join(0.3)
             out = (box.get("out") or b"").decode("utf-8", "replace")
             err = (box.get("err") or b"").decode("utf-8", "replace")
-            data: Any = {}
-            for candidate in (out.strip(), (out.strip().splitlines() or [""])[-1]):
-                try:
-                    data = json.loads(candidate)
-                    break
-                except ValueError:
-                    continue
-            if not isinstance(data, dict):
-                data = {}
-            result = data.get("result") if isinstance(data, dict) else None
-            if proc.returncode != 0 or data.get("is_error") or not result:
-                detail = (data.get("error") or data.get("subtype") or err.strip() or out.strip())[-400:]
+            text, result = parse_claude_stream(out)
+            if proc.returncode != 0 or result.get("is_error") or not text.strip():
+                detail = str(result.get("error") or result.get("subtype") or err.strip()
+                             or out.strip())[-400:]
                 if "login" in detail.lower() or "auth" in detail.lower():
                     raise JobError("Claude Code ist nicht angemeldet – bitte einmal „claude“ im "
                                    "Terminal starten und anmelden.")
                 raise JobError(f"Claude Code-Fehler: {detail or 'keine Antwort'}")
-            return str(result)
+            return text
         finally:
             shutil.rmtree(workdir, ignore_errors=True)
 
