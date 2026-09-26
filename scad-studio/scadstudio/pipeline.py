@@ -230,8 +230,6 @@ def collision_check(job: Job, project: Project, settings: Settings) -> dict[str,
 
     Voraussetzung: Das Modell hat ein Modul `placed(id)` (Teil in Einbaulage).
     """
-    from . import meshcheck
-
     code = project.read_code()
     parts = prompts.parse_parts(code)
     if not parts or not has_placement(code):

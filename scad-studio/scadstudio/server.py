@@ -17,7 +17,6 @@ import re
 import threading
 import urllib.parse
 import zipfile
-from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any, Callable
@@ -409,7 +408,11 @@ def make_handler(studio: Studio) -> type[BaseHTTPRequestHandler]:
                 if action == "open":
                     if not project.scad_file.exists():
                         raise ApiError("Noch kein Code vorhanden.")
-                    openscad.open_in_openscad(project.scad_file, pipeline.openscad_info(settings))
+                    gui_path = settings.get("openscad_gui_path") or ""
+                    gui_info = openscad.detect(gui_path) if gui_path else pipeline.openscad_info(settings)
+                    if not gui_info.found:
+                        raise ApiError(gui_info.error or "OpenSCAD zum Öffnen nicht gefunden.")
+                    openscad.open_in_openscad(project.scad_file, gui_info)
                     return {"ok": True}
                 if action == "collisions":
                     return {**start("fit", "Passungsprüfung", lambda job: pipeline.collision_check(

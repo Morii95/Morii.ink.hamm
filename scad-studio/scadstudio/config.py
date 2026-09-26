@@ -50,6 +50,7 @@ DEFAULTS: dict[str, Any] = {
     "material": "PLA",
     # OpenSCAD
     "openscad_path": "",          # leer = automatisch suchen
+    "openscad_gui_path": "",      # optional: andere Version zum Öffnen (leer = wie oben)
     "use_manifold": True,         # schnelles Manifold-Backend nutzen, falls vorhanden
     "render_timeout": 600,        # Sekunden
     "parallel_renders": 0,        # gleichzeitige OpenSCAD-Prozesse (0 = automatisch)
@@ -62,7 +63,7 @@ DEFAULTS: dict[str, Any] = {
 }
 
 SECRET_KEYS = ("gemini_api_key", "anthropic_api_key", "openai_api_key")
-PATH_KEYS = ("openscad_path", "claude_cli_path", "projects_dir")
+PATH_KEYS = ("openscad_path", "openscad_gui_path", "claude_cli_path", "projects_dir")
 NUMBER_KEYS = ("nozzle", "layer_height", "tolerance")
 
 # Umgebungsvariablen als Alternative zu gespeicherten Schlüsseln

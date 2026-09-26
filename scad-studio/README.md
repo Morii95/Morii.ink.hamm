@@ -63,7 +63,7 @@ Du brauchst **eine** der folgenden Möglichkeiten:
 | Anbieter | Kosten | Einrichtung |
 |---|---|---|
 | **Google Gemini** | kostenloses Kontingent | Schlüssel unter [aistudio.google.com/apikey](https://aistudio.google.com/apikey) erstellen und einfügen. Wird auch für „Bild erzeugen“ gebraucht. |
-| **Claude Code (lokal)** | über dein Claude-Abo | [Claude Code](https://claude.com/claude-code) installieren, einmal `claude` im Terminal starten und anmelden. Kein Schlüssel nötig. |
+| **Claude Code (lokal)** | über dein Claude-Abo | [Claude Code](https://claude.com/claude-code) installieren, einmal `claude` im Terminal starten und anmelden. Kein Schlüssel nötig. „Denktiefe“ mittel ist ein guter Standard – „hoch“ wird gründlicher, dauert aber deutlich länger. |
 | **Anthropic Claude (API)** | nach Verbrauch | Schlüssel unter [platform.claude.com](https://platform.claude.com). Standardmodell `claude-opus-5`; Ausweichmodelle bei Ablehnungen sind aktiviert. |
 | **Ollama (lokal)** | kostenlos, offline | [ollama.com](https://ollama.com) installieren, z. B. `ollama pull qwen3-vl:8b`, Basis-URL `http://localhost:11434/v1`. Wichtig: Ollama mit größerem Kontext starten (`OLLAMA_CONTEXT_LENGTH=16384`), sonst wird die Konstruktionsanleitung abgeschnitten. Lokale Modelle konstruieren deutlich schwächer als Gemini/Claude. |
 
@@ -206,6 +206,7 @@ Ollama bleibt alles auf deinem Rechner.
 | „OpenSCAD nicht gefunden“ | Einstellungen → OpenSCAD → Pfad zur `openscad.exe` (Windows) bzw. `/Applications/OpenSCAD.app` (Mac) angeben. |
 | Gemini: 429 / Kontingent | Kurz warten, kleineres Modell wählen (`gemini-3.5-flash-lite`) oder Abrechnung aktivieren. |
 | Gemini: Modell nicht gefunden | „Verfügbare Modelle abrufen“ und ein Modell aus der Liste wählen. |
+| Entwicklerversion startet unter Windows nicht als Programm | Zum Rendern trotzdem nutzen (Einstellungen → „Pfad zum Rendern“), und unter „Pfad zum Öffnen“ die stabile `C:\Program Files\OpenSCAD\openscad.exe` eintragen. |
 | Rendern dauert sehr lange | Entwicklerversion von OpenSCAD installieren (Manifold), Zeitlimit in den Einstellungen erhöhen. Teile und Passungen werden automatisch parallel gerendert (Kerne − 1). |
 | Port belegt | `python start.py --port 9000` |
 
