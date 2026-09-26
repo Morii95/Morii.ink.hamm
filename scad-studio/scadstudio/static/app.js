@@ -1110,7 +1110,7 @@
     }
     if (fit) {
       var bad = fit.collisions || [];
-      var open = fit.incomplete || [];
+      var open = (fit.incomplete || []).concat((fit.floating || []).map(function (l) { return l + ': berührt kein anderes Teil (schwebt?)'; }));
       var cls = bad.length ? 'err' : (open.length ? 'warn' : 'ok');
       var txt = bad.length ? ('✗ ' + bad.length + ' Kollision(en) im Zusammenbau')
         : open.length ? ('⚠ Unvollständig: ' + open.length + ' Teil(e)/Paar(e) nicht prüfbar')

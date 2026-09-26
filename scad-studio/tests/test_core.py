@@ -225,6 +225,12 @@ class PipelineTests(unittest.TestCase):
         self.assertGreater(fit["collisions"][0]["volume_mm3"], 1)
         self.assertTrue(pipeline.collision_problems(fit))
         self.assertFalse(list(project.path.glob("_passung*")), "Hilfsdateien wurden nicht aufgeräumt")
+        # Stift weit weg vom Sockel → schwebt, darf nicht als „bestanden“ gelten
+        project.write_code(placed.replace("translate([15, 15, 2]) pin();", "translate([100, 15, 2]) pin();"))
+        fit = pipeline.collision_check(job, project, self.settings)["collisions"]
+        self.assertFalse(fit["ok"])
+        self.assertEqual(len(fit["floating"]), 2)
+        self.assertTrue(any("schwebt" in p for p in pipeline.collision_problems(fit)))
 
     def test_image_to_model_modes(self):
         from io import BytesIO

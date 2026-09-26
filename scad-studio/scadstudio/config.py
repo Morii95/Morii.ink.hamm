@@ -38,7 +38,7 @@ DEFAULTS: dict[str, Any] = {
     # Lokal installiertes Claude Code (nutzt das Claude-Abo statt API-Schlüssel)
     "claude_cli_path": "",        # leer = automatisch suchen
     "claude_cli_model": "",       # leer = Standard, sonst z. B. opus / sonnet
-    "claude_cli_effort": "low",   # Denktiefe: low | medium | high | xhigh | max
+    "claude_cli_effort": "medium",  # Denktiefe: low | medium | high | xhigh | max
     # Drucker (siehe printers.py)
     "printer": "kobra2neo",
     "bed_x": 220,
@@ -56,7 +56,7 @@ DEFAULTS: dict[str, Any] = {
     "parallel_renders": 0,        # gleichzeitige OpenSCAD-Prozesse (0 = automatisch)
     # KI-Schleifen
     "repair_attempts": 3,         # Fehler automatisch reparieren lassen
-    "visual_rounds": 1,           # Bild-Selbstprüfung nach dem Rendern (0 = aus)
+    "visual_rounds": 2,           # Bild-Selbstprüfung nach dem Rendern (0 = aus)
     "fit_check": "auto",          # Passungs-/Kollisionsprüfung: auto (mit Manifold) | on | off
     # Speicherort der Projekte (leer = <App-Ordner>/projekte)
     "projects_dir": "",

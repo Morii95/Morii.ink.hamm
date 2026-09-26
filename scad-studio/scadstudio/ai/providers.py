@@ -445,7 +445,7 @@ class ClaudeCodeProvider(Provider):
 
     name = "Claude Code"
 
-    def __init__(self, path: str, model: str, effort: str = "low"):
+    def __init__(self, path: str, model: str, effort: str = "medium"):
         super().__init__(model)
         self.effort = effort if effort in ("low", "medium", "high", "xhigh", "max") else ""
         exe = find_claude_cli(path)
@@ -548,7 +548,7 @@ def make_provider(settings: Any, provider: str | None = None, model: str | None 
                                     model or settings.get("openai_model"))
     if provider == "claude_cli":
         return ClaudeCodeProvider(settings.get("claude_cli_path"), model or settings.get("claude_cli_model"),
-                                  settings.get("claude_cli_effort") or "low")
+                                  settings.get("claude_cli_effort") or "medium")
     raise JobError(f"Unbekannter KI-Anbieter: {provider}")
 
 

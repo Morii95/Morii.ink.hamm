@@ -294,6 +294,10 @@ def _collision_pairs(job: Job, project: Project, settings: Settings, parts: list
     # 2) Nur Paare prüfen, deren Hüllquader sich berühren
     ids = [p["id"] for p in parts if p["id"] in boxes]
     pairs = [(a, b) for i, a in enumerate(ids) for b in ids[i + 1:] if _boxes_touch(boxes[a], boxes[b])]
+    # Teile, die im Zusammenbau nichts berühren, schweben – meist falsche Einbaulage
+    floating = [labels[i] for i in ids if len(ids) > 1 and not any(i in pair for pair in pairs)]
+    for label in floating:
+        job.warn(f"{label}: berührt im Zusammenbau kein anderes Teil (schwebt?).")
     job.info(f"Prüfe {len(pairs)} Teilepaare, deren Hüllquader sich berühren …")
     collisions, checked = [], []
 
@@ -331,14 +335,15 @@ def _collision_pairs(job: Job, project: Project, settings: Settings, parts: list
         else:
             job.warn(f"{entry['label']}: konnte nicht geprüft werden.")
 
-    result = {"ok": not collisions and not incomplete, "pairs": checked, "collisions": collisions,
-              "incomplete": incomplete, "parts": len(ids), "time": time.strftime("%Y-%m-%d %H:%M:%S")}
+    result = {"ok": not collisions and not incomplete and not floating, "pairs": checked,
+              "collisions": collisions, "incomplete": incomplete, "floating": floating,
+              "parts": len(ids), "time": time.strftime("%Y-%m-%d %H:%M:%S")}
     project.update(collisions=result)
     if collisions:
         job.warn(f"{len(collisions)} Kollision(en) gefunden.")
     if incomplete:
         job.warn(f"Passungsprüfung unvollständig: {len(incomplete)} Teil(e)/Paar(e) nicht prüfbar.")
-    if not collisions and not incomplete:
+    if not collisions and not incomplete and not floating:
         job.info(f"Passungsprüfung bestanden: {len(checked)} Teilepaare ohne Überschneidung.", "success")
     return {"project": project.to_dict(), "collisions": result}
 
@@ -365,6 +370,8 @@ def collision_problems(result: dict[str, Any]) -> list[str]:
     problems = [f"Kollision im Zusammenbau: {c['label']} überschneiden sich um {c['volume_mm3']:.1f} mm³ – "
                 f"Spaltmaß, Position oder Gewindephase korrigieren." for c in result.get("collisions", [])]
     problems += [f"Passungsprüfung unvollständig – {text}" for text in result.get("incomplete", [])]
+    problems += [f"Teil „{label}“ berührt im Zusammenbau kein anderes Teil – es schwebt. Einbaulage "
+                 f"(placed) und Verbindung prüfen." for label in result.get("floating", [])]
     return problems
 
 

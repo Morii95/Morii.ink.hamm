@@ -63,7 +63,7 @@ Du brauchst **eine** der folgenden Möglichkeiten:
 | Anbieter | Kosten | Einrichtung |
 |---|---|---|
 | **Google Gemini** | kostenloses Kontingent | Schlüssel unter [aistudio.google.com/apikey](https://aistudio.google.com/apikey) erstellen und einfügen. Wird auch für „Bild erzeugen“ gebraucht. |
-| **Claude Code (lokal)** | über dein Claude-Abo | [Claude Code](https://claude.com/claude-code) installieren, einmal `claude` im Terminal starten und anmelden. Kein Schlüssel nötig. „Denktiefe“ niedrig ist ein guter Standard (Fehler behebt die Reparaturschleife) – „mittel/hoch“ wird gründlicher, dauert aber deutlich länger. |
+| **Claude Code (lokal)** | über dein Claude-Abo | [Claude Code](https://claude.com/claude-code) installieren, einmal `claude` im Terminal starten und anmelden. Kein Schlüssel nötig. „Denktiefe“ mittel ist der Standard; „niedrig“ ist schneller (gut für einfache Teile), „hoch“ gründlicher, aber deutlich langsamer. |
 | **Anthropic Claude (API)** | nach Verbrauch | Schlüssel unter [platform.claude.com](https://platform.claude.com). Standardmodell `claude-opus-5`; Ausweichmodelle bei Ablehnungen sind aktiviert. |
 | **Ollama (lokal)** | kostenlos, offline | [ollama.com](https://ollama.com) installieren, z. B. `ollama pull qwen3-vl:8b`, Basis-URL `http://localhost:11434/v1`. Wichtig: Ollama mit größerem Kontext starten (`OLLAMA_CONTEXT_LENGTH=16384`), sonst wird die Konstruktionsanleitung abgeschnitten. Lokale Modelle konstruieren deutlich schwächer als Gemini/Claude. |
 
