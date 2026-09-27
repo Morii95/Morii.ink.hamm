@@ -1117,9 +1117,13 @@
         : ('✓ ' + fit.pairs.length + ' Teilepaare geprüft – nichts steckt ineinander');
       box.appendChild(el('div', { class: 'report-summary ' + cls, text: txt }));
       if (open.length) box.appendChild(issueList(open.map(function (t) { return { level: 'warning', text: t }; })));
+      var regionText = function (r) {
+        if (!r) return '';
+        return ' bei ' + ['x', 'y', 'z'].map(function (a, i) { return a + ' ' + fmt(r.min[i], 1) + '…' + fmt(r.max[i], 1); }).join(', ') + ' mm';
+      };
       var items = fit.pairs.map(function (pair) {
         var level = pair.ok === false ? 'error' : (pair.ok ? 'info' : 'warning');
-        var text = pair.label + ': ' + (pair.ok === false ? ('Überschneidung ' + fmt(pair.volume_mm3, 1) + ' mm³')
+        var text = pair.label + ': ' + (pair.ok === false ? ('Überschneidung ' + fmt(pair.volume_mm3, 1) + ' mm³' + regionText(pair.region))
           : (pair.ok ? 'frei' : (pair.error || 'nicht prüfbar')));
         return { level: level, text: text };
       });

@@ -327,6 +327,10 @@ def _collision_pairs(job: Job, project: Project, settings: Settings, parts: list
             volume = meshcheck.analyze(work / f"{name}.stl", wall_samples=0).get("volume_cm3", 0) * 1000
             entry["volume_mm3"] = round(volume, 2)
             entry["ok"] = volume < COLLISION_MIN_VOLUME
+            if not entry["ok"]:
+                # Lage der Überschneidung – die KI muss sonst selbst suchen, wo es klemmt
+                region = meshcheck.stl_bbox(work / f"{name}.stl")
+                entry["region"] = {k: [round(v, 1) for v in region[k]] for k in ("min", "max")}
         elif _only_empty(res):
             entry["volume_mm3"] = 0.0
             entry["ok"] = True
@@ -337,7 +341,9 @@ def _collision_pairs(job: Job, project: Project, settings: Settings, parts: list
         checked.append(entry)
         if entry["ok"] is False:
             collisions.append(entry)
-            job.warn(f"Kollision: {entry['label']} überschneiden sich um {entry['volume_mm3']:.1f} mm³.")
+            where = region_text(entry.get("region"))
+            job.warn(f"Kollision: {entry['label']} überschneiden sich um {entry['volume_mm3']:.1f} mm³"
+                     + (f" ({where})." if where else "."))
         elif entry["ok"]:
             job.info(f"{entry['label']}: frei (Spaltmaß eingehalten).")
         else:
@@ -374,9 +380,21 @@ def should_check_fit(settings: Settings, project: Project) -> bool:
     return bool(info.manifold_flag and settings.get("use_manifold"))
 
 
+def region_text(region: dict[str, list[float]] | None) -> str:
+    """„x 10…30, y −5…5, z 0…12 mm“ – Bereich der Überschneidung in Einbaulage."""
+    if not region:
+        return ""
+    return ", ".join(f"{axis} {lo:g}…{hi:g}" for axis, lo, hi in
+                     zip("xyz", region["min"], region["max"])) + " mm"
+
+
 def collision_problems(result: dict[str, Any]) -> list[str]:
-    problems = [f"Kollision im Zusammenbau: {c['label']} überschneiden sich um {c['volume_mm3']:.1f} mm³ – "
-                f"Spaltmaß, Position oder Gewindephase korrigieren." for c in result.get("collisions", [])]
+    problems = []
+    for c in result.get("collisions", []):
+        where = region_text(c.get("region"))
+        where = f" im Bereich {where} (Koordinaten des Zusammenbaus, placed())" if where else ""
+        problems.append(f"Kollision im Zusammenbau: {c['label']} überschneiden sich um {c['volume_mm3']:.1f} mm³"
+                        f"{where} – Spaltmaß, Position oder Gewindephase korrigieren.")
     problems += [f"Passungsprüfung unvollständig – {text}" for text in result.get("incomplete", [])]
     problems += [f"Teil „{label}“ berührt im Zusammenbau kein anderes Teil – es schwebt. Einbaulage "
                  f"(placed) und Verbindung prüfen." for label in result.get("floating", [])]

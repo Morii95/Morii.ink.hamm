@@ -223,7 +223,10 @@ class PipelineTests(unittest.TestCase):
         fit = pipeline.collision_check(job, project, self.settings)["collisions"]
         self.assertFalse(fit["ok"])
         self.assertGreater(fit["collisions"][0]["volume_mm3"], 1)
-        self.assertTrue(pipeline.collision_problems(fit))
+        # Lage der Überschneidung: rund um den Stift bei x = y = 15
+        region = fit["collisions"][0]["region"]
+        self.assertTrue(10 <= region["min"][0] <= 15 <= region["max"][0] <= 20, region)
+        self.assertIn("im Bereich x ", pipeline.collision_problems(fit)[0])
         self.assertFalse(list(project.path.glob("_passung*")), "Hilfsdateien wurden nicht aufgeräumt")
         # Stift weit weg vom Sockel → schwebt, darf nicht als „bestanden“ gelten
         project.write_code(placed.replace("translate([15, 15, 2]) pin();", "translate([100, 15, 2]) pin();"))

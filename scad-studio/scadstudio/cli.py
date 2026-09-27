@@ -77,6 +77,9 @@ def _report(project, as_json: bool) -> int:
             for pair in fit["pairs"]:
                 state = "frei" if pair.get("ok") else ("KOLLISION %.1f mm³" % pair.get("volume_mm3", 0)
                                                         if pair.get("ok") is False else pair.get("error", "?"))
+                if pair.get("region"):
+                    from .pipeline import region_text
+                    state += f" bei {region_text(pair['region'])}"
                 print(f"  {pair['label']:<40} {state}")
         if problems:
             print(f"\n{len(problems)} Problem(e):")
