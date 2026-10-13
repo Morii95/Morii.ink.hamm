@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>KI-Dirigent</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='15' fill='%23111'/%3E%3Cpath d='M10 22c3-1 5-5 6-12M16 10l6 3' stroke='%23fff' stroke-width='2.4' fill='none' stroke-linecap='round'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="/ui/style.css">
+</head>
+<body>
+<div class="app" id="app">
+
+  <!-- ============ Seitenleiste ============ -->
+  <aside class="seite" id="seite">
+    <div class="marke">
+      <div class="logo" aria-hidden="true">
+        <svg viewBox="0 0 32 32"><circle cx="16" cy="16" r="15"/><path d="M10 22c3-1 5-5 6-12M16 10l6 3"/></svg>
+      </div>
+      <div>
+        <div class="marke-name">Dirigent</div>
+        <div class="marke-sub">Ollama verteilt · lokal</div>
+      </div>
+    </div>
+    <button class="knopf voll" id="neu">＋ Neue Aufgabe</button>
+    <div class="liste-titel">Gespräche</div>
+    <nav class="gespraeche" id="gespraeche"></nav>
+    <div class="status-box" id="status-box" title="Spezialisten anzeigen"></div>
+  </aside>
+
+  <!-- ============ Mitte ============ -->
+  <main class="mitte">
+    <header class="kopf">
+      <button class="icon nur-mobil" id="menue" aria-label="Menü">☰</button>
+      <h1 id="titel">Neue Aufgabe</h1>
+      <div class="kopf-rechts">
+        <button class="icon" id="panel-umschalten" title="Arbeitsfläche ein-/ausblenden" aria-label="Arbeitsfläche">▤</button>
+      </div>
+    </header>
+
+    <section class="verlauf" id="verlauf">
+      <div class="willkommen" id="willkommen">
+        <div class="logo gross" aria-hidden="true">
+          <svg viewBox="0 0 32 32"><circle cx="16" cy="16" r="15"/><path d="M10 22c3-1 5-5 6-12M16 10l6 3"/></svg>
+        </div>
+        <h2>Was soll erledigt werden?</h2>
+        <p>Ollama plant lokal, sucht auf deinem PC, bereitet Daten vor und gibt nur das Nötige an
+          Claude, Gemini oder ChatGPT weiter – so günstig wie möglich.</p>
+        <div class="beispiele">
+          <button>Erkläre mir kurz, was eine API ist.</button>
+          <button>Schreib ein Python-Skript, das alle PDFs in einem Ordner nach Datum sortiert.</button>
+          <button>Fasse meine Notizen zum Projekt zusammen und erstelle eine To-do-Liste.</button>
+          <button>Schreib 3 Instagram-Texte für ein Tattoo-Studio.</button>
+        </div>
+      </div>
+    </section>
+
+    <form class="eingabe" id="eingabe">
+      <div class="chips" id="chips"></div>
+      <textarea id="text" rows="1" placeholder="Aufgabe beschreiben … (Enter = senden, Umschalt+Enter = neue Zeile)"></textarea>
+      <div class="eingabe-leiste">
+        <div class="optionen">
+          <select id="spezialist" title="Wer soll die Aufgabe bekommen?">
+            <option value="auto">Automatisch – Ollama entscheidet</option>
+          </select>
+          <select id="strategie" title="Wie soll Ollama auswählen?">
+            <option value="sparsam">sparsam</option>
+            <option value="ollama">Ollamas Wahl</option>
+            <option value="qualitaet">beste Qualität</option>
+          </select>
+          <label class="schalter" title="Große Aufgaben in unabhängige Teile zerlegen"><input type="checkbox" id="zerlegen" checked> zerlegen</label>
+          <label class="schalter" title="Ollama darf passende Dateien auf dem PC suchen"><input type="checkbox" id="pcsuche" checked> PC-Suche</label>
+          <label class="schalter" title="```datei:…``` Blöcke im Arbeitsplatz speichern"><input type="checkbox" id="speichern" checked> speichern</label>
+        </div>
+        <button type="submit" class="senden" id="senden" aria-label="Senden">↑</button>
+      </div>
+    </form>
+  </main>
+
+  <!-- ============ Arbeitsfläche ============ -->
+  <aside class="panel" id="panel">
+    <div class="tabs" role="tablist">
+      <button data-tab="arbeitsplatz" class="aktiv">Arbeitsplatz</button>
+      <button data-tab="pc">PC</button>
+      <button data-tab="ki">KI-Ordner</button>
+      <button data-tab="spezialisten">Spezialisten</button>
+      <button data-tab="verbrauch">Verbrauch</button>
+    </div>
+
+    <div class="tab-inhalt" id="tab-arbeitsplatz">
+      <div class="leiste">
+        <button class="knopf klein" id="hochladen">Hochladen</button>
+        <button class="knopf klein" id="neue-datei">Neue Datei</button>
+        <button class="knopf klein leise" id="ap-neu-laden" title="Aktualisieren">↻</button>
+        <input type="file" id="datei-wahl" multiple hidden>
+      </div>
+      <div class="pfad-info" id="ap-wurzel"></div>
+      <div class="baum" id="ap-baum"></div>
+    </div>
+
+    <div class="tab-inhalt" id="tab-pc" hidden>
+      <div class="suche-zeile">
+        <input id="pc-suche" placeholder="Im PC-Index suchen …">
+        <button class="knopf klein" id="pc-suchen">Suchen</button>
+      </div>
+      <div class="startpunkte" id="pc-start"></div>
+      <div class="pc-pfad" id="pc-pfad"></div>
+      <div class="leiste" id="pc-aktionen"></div>
+      <div class="job" id="pc-job"></div>
+      <div class="baum" id="pc-liste"></div>
+    </div>
+
+    <div class="tab-inhalt" id="tab-ki" hidden>
+      <p class="hinweis">Jede KI hat ihren eigenen Ordner im Arbeitsplatz – wie <code>~/.claude</code>.
+        <b>ANWEISUNGEN.md</b> wird bei jeder Aufgabe mitgegeben, <b>GEDAECHTNIS.md</b> sammelt, was sich die KI merken soll.
+        Kurz halten spart Tokens.</p>
+      <div id="ki-liste"></div>
+    </div>
+
+    <div class="tab-inhalt" id="tab-spezialisten" hidden>
+      <div id="ollama-info"></div>
+      <div id="spez-liste"></div>
+    </div>
+
+    <div class="tab-inhalt" id="tab-verbrauch" hidden>
+      <div id="verbrauch"></div>
+    </div>
+
+    <!-- Datei-Ansicht / Editor -->
+    <div class="ansicht" id="ansicht" hidden>
+      <div class="ansicht-kopf">
+        <span id="ansicht-pfad"></span>
+        <span class="platz"></span>
+        <button class="knopf klein" id="ansicht-anhaengen">📎 Anhängen</button>
+        <button class="knopf klein" id="ansicht-speichern">Speichern</button>
+        <button class="icon" id="ansicht-zu" aria-label="Schließen">✕</button>
+      </div>
+      <textarea id="ansicht-text" spellcheck="false"></textarea>
+    </div>
+  </aside>
+</div>
+
+<div class="toast" id="toast" hidden></div>
+<script src="/ui/app.js"></script>
+</body>
+</html>

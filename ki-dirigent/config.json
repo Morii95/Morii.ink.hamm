@@ -1,0 +1,315 @@
+{
+  "server": {
+    "host": "127.0.0.1",
+    "port": 8765,
+    "erlaubte_hosts": ["localhost", "127.0.0.1", "::1"]
+  },
+
+  "ollama": {
+    "url": "http://localhost:11434",
+    "router_modell": "qwen2.5:7b",
+    "helfer_modell": "qwen2.5:7b",
+    "embedding_modell": "nomic-embed-text",
+    "num_ctx": 8192,
+    "keep_alive": "30m"
+  },
+
+  "anthropic": { "base_url": "https://api.anthropic.com" },
+  "openai":    { "base_url": "https://api.openai.com/v1" },
+  "gemini":    { "base_url": "https://generativelanguage.googleapis.com/v1beta" },
+
+  "arbeitsplatz": "arbeitsplatz",
+  "daten": "daten",
+
+  "ki_ordner": {
+    "anthropic": { "ordner": "claude",  "tool_ordner": "~/.claude",  "tool_anweisungen": "CLAUDE.md" },
+    "openai":    { "ordner": "chatgpt", "tool_ordner": "~/.codex",   "tool_anweisungen": "AGENTS.md" },
+    "gemini":    { "ordner": "gemini",  "tool_ordner": "~/.gemini",  "tool_anweisungen": "GEMINI.md" },
+    "ollama":    { "ordner": "ollama",  "tool_ordner": "~/.ollama",  "tool_anweisungen": "" },
+    "tool_anweisungen_nutzen": false,
+    "max_zeichen": 2000
+  },
+
+  "pc": {
+    "lesen": ["*"],
+    "schreiben": [],
+    "sperren": [".ssh", ".gnupg", ".aws", ".azure", ".kube", ".docker", ".password-store",
+                "*.pem", "*.key", "*.p12", "*.pfx", "*.kdbx", "id_rsa*", "id_ed25519*", ".env", ".env.*",
+                "Login Data", "Cookies", "Web Data", "*.keychain*", "wallet.dat"],
+    "scan_ueberspringen": [".git", "node_modules", "__pycache__", ".venv", "venv", ".cache", ".npm",
+                           "AppData", "$Recycle.Bin", "System Volume Information", "Windows",
+                           "Program Files", "Program Files (x86)", "ProgramData", "Library",
+                           "proc", "sys", "dev", "snap"],
+    "scan_max_eintraege": 200000,
+    "analyse_max_dateien": 300,
+    "bereitstellen_max_mb": 200
+  },
+
+  "sparen": {
+    "strategie": "sparsam",
+    "zerlegen": true,
+    "max_teilaufgaben": 4,
+    "cache": true,
+    "verlauf_letzte": 4,
+    "verdichten_ab_zeichen": 6000,
+    "max_nachricht_zeichen": 6000,
+    "max_datei_zeichen": 60000,
+    "vorbereiten_ab_zeichen": 12000,
+    "vorbereiten_bis_zeichen": 250000,
+    "zusammenfuehren_lokal_bis_zeichen": 8000,
+    "weg_in_kompat_antwort": true
+  },
+
+  "system_basis": "Antworte in der Sprache des Nutzers. Sei präzise und komme direkt zum Punkt, ohne Einleitungs- oder Füllsätze.",
+
+  "spezialisten": [
+    {
+      "id": "lokal",
+      "name": "Ollama Allrounder",
+      "anbieter": "ollama",
+      "modell": "qwen2.5:7b",
+      "kategorien": ["chat", "text", "uebersetzung", "analyse", "kreativ"],
+      "niveau": 1,
+      "kosten": 0,
+      "max_tokens": 2048,
+      "max_kontext_zeichen": 20000,
+      "staerken": "Smalltalk, kurze Fragen, Umformulieren, kurze Texte zusammenfassen oder übersetzen"
+    },
+
+    {
+      "id": "lokal-code",
+      "name": "Ollama Coder",
+      "anbieter": "ollama",
+      "modell": "qwen2.5-coder:7b",
+      "kategorien": ["code"],
+      "niveau": 1,
+      "kosten": 0,
+      "max_tokens": 4096,
+      "max_kontext_zeichen": 20000,
+      "staerken": "kleine Skripte, einfache Code-Fragen, Formeln, Befehle"
+    },
+
+    {
+      "id": "claude-haiku-app",
+      "name": "Claude Haiku (Claude Code)",
+      "anbieter": "cli",
+      "familie": "anthropic",
+      "modell": "haiku",
+      "aktiv": "auto",
+      "befehl": ["claude", "-p", "--model", "haiku", "--output-format", "json"],
+      "ausgabe": { "format": "json", "text": "result", "ein": "usage.input_tokens", "aus": "usage.output_tokens" },
+      "env_entfernen": ["ANTHROPIC_API_KEY"],
+      "kategorien": ["alles"],
+      "niveau": 2,
+      "kosten": 1,
+      "timeout": 900,
+      "max_kontext_zeichen": 600000,
+      "staerken": "schnell: Texte, E-Mails, Datenextraktion, mittlere Programmieraufgaben (über dein Claude-Abo)"
+    },
+
+    {
+      "id": "claude-sonnet-app",
+      "name": "Claude Sonnet (Claude Code)",
+      "anbieter": "cli",
+      "familie": "anthropic",
+      "modell": "sonnet",
+      "aktiv": "auto",
+      "befehl": ["claude", "-p", "--model", "sonnet", "--output-format", "json"],
+      "ausgabe": { "format": "json", "text": "result", "ein": "usage.input_tokens", "aus": "usage.output_tokens" },
+      "env_entfernen": ["ANTHROPIC_API_KEY"],
+      "kategorien": ["alles"],
+      "niveau": 3,
+      "kosten": 2,
+      "timeout": 900,
+      "max_kontext_zeichen": 600000,
+      "staerken": "anspruchsvoller Code, Debugging, Refactoring, gründliche Analysen (über dein Claude-Abo)"
+    },
+
+    {
+      "id": "claude-opus-app",
+      "name": "Claude Opus (Claude Code)",
+      "anbieter": "cli",
+      "familie": "anthropic",
+      "modell": "opus",
+      "aktiv": "auto",
+      "befehl": ["claude", "-p", "--model", "opus", "--output-format", "json"],
+      "ausgabe": { "format": "json", "text": "result", "ein": "usage.input_tokens", "aus": "usage.output_tokens" },
+      "env_entfernen": ["ANTHROPIC_API_KEY"],
+      "kategorien": ["code", "analyse", "mathe", "recherche"],
+      "niveau": 3,
+      "kosten": 3,
+      "timeout": 1200,
+      "max_kontext_zeichen": 600000,
+      "staerken": "sehr schwierige Probleme, Architektur, komplexes Denken (über dein Claude-Abo, verbraucht Kontingent schnell)"
+    },
+
+    {
+      "id": "gemini-flash-app",
+      "name": "Gemini Flash (Gemini CLI)",
+      "anbieter": "cli",
+      "familie": "gemini",
+      "modell": "gemini-3-flash-preview",
+      "aktiv": "auto",
+      "befehl": ["gemini", "-m", "gemini-3-flash-preview"],
+      "env_entfernen": ["GEMINI_API_KEY", "GOOGLE_API_KEY"],
+      "kategorien": ["langer_kontext", "recherche", "analyse", "text", "uebersetzung"],
+      "niveau": 2,
+      "kosten": 1,
+      "timeout": 900,
+      "max_kontext_zeichen": 2000000,
+      "staerken": "sehr lange Dokumente, große Datenmengen, Zusammenfassungen, Übersetzungen (über dein Google-Konto)"
+    },
+
+    {
+      "id": "gemini-pro-app",
+      "name": "Gemini Pro (Gemini CLI)",
+      "anbieter": "cli",
+      "familie": "gemini",
+      "modell": "gemini-3.1-pro-preview",
+      "aktiv": "auto",
+      "befehl": ["gemini", "-m", "gemini-3.1-pro-preview"],
+      "env_entfernen": ["GEMINI_API_KEY", "GOOGLE_API_KEY"],
+      "kategorien": ["langer_kontext", "analyse", "recherche", "mathe"],
+      "niveau": 3,
+      "kosten": 2,
+      "timeout": 1200,
+      "max_kontext_zeichen": 2000000,
+      "staerken": "tiefe Analyse sehr großer Dokumente, Mathematik, komplexe Recherche (über dein Google-Konto)"
+    },
+
+    {
+      "id": "chatgpt-mini-app",
+      "name": "ChatGPT Mini (Codex)",
+      "anbieter": "cli",
+      "familie": "openai",
+      "modell": "gpt-5.4-mini",
+      "aktiv": "auto",
+      "befehl": ["codex", "exec", "--skip-git-repo-check", "-m", "gpt-5.4-mini", "-"],
+      "env_entfernen": ["OPENAI_API_KEY"],
+      "kategorien": ["kreativ", "text", "chat"],
+      "niveau": 2,
+      "kosten": 1,
+      "timeout": 900,
+      "max_kontext_zeichen": 400000,
+      "staerken": "kreatives Schreiben, Werbetexte, Social Media, Brainstorming (über dein ChatGPT-Abo)"
+    },
+
+    {
+      "id": "chatgpt-app",
+      "name": "ChatGPT (Codex)",
+      "anbieter": "cli",
+      "familie": "openai",
+      "modell": "gpt-5.5",
+      "aktiv": "auto",
+      "befehl": ["codex", "exec", "--skip-git-repo-check", "-m", "gpt-5.5", "-"],
+      "env_entfernen": ["OPENAI_API_KEY"],
+      "kategorien": ["code", "kreativ", "analyse", "text"],
+      "niveau": 3,
+      "kosten": 2,
+      "timeout": 1200,
+      "max_kontext_zeichen": 2000000,
+      "staerken": "Programmieren, Konzepte, Strategie, anspruchsvolle Texte (über dein ChatGPT-Abo)"
+    },
+
+    {
+      "id": "claude-haiku-api",
+      "name": "Claude Haiku (API)",
+      "anbieter": "anthropic",
+      "modell": "claude-haiku-5-5",
+      "kategorien": ["alles"],
+      "niveau": 2,
+      "kosten": 2,
+      "max_tokens": 4096,
+      "max_kontext_zeichen": 600000,
+      "staerken": "schnell und günstig: Texte, E-Mails, Datenextraktion, mittlere Programmieraufgaben"
+    },
+
+    {
+      "id": "claude-sonnet-api",
+      "name": "Claude Sonnet (API)",
+      "anbieter": "anthropic",
+      "modell": "claude-sonnet-5-5",
+      "kategorien": ["code", "analyse", "text", "mathe", "recherche"],
+      "niveau": 3,
+      "kosten": 3,
+      "max_tokens": 8192,
+      "max_kontext_zeichen": 600000,
+      "staerken": "anspruchsvoller Code, Debugging, Refactoring, gründliche Analysen"
+    },
+
+    {
+      "id": "claude-opus-api",
+      "name": "Claude Opus (API)",
+      "anbieter": "anthropic",
+      "modell": "claude-opus-5-5",
+      "kategorien": ["code", "analyse", "mathe", "recherche"],
+      "niveau": 3,
+      "kosten": 5,
+      "max_tokens": 8192,
+      "max_kontext_zeichen": 600000,
+      "staerken": "sehr schwierige Probleme, Software-Architektur, komplexes Denken"
+    },
+
+    {
+      "id": "gemini-flash-api",
+      "name": "Gemini Flash (API)",
+      "anbieter": "gemini",
+      "modell": "gemini-3-flash-preview",
+      "kategorien": ["langer_kontext", "recherche", "analyse", "text", "uebersetzung"],
+      "niveau": 2,
+      "kosten": 2,
+      "max_tokens": 8192,
+      "max_kontext_zeichen": 2000000,
+      "extra": {
+        "generationConfig": {
+          "thinkingConfig": {
+            "thinkingLevel": "low"
+          }
+        }
+      },
+      "staerken": "sehr lange Dokumente, große Datenmengen, Zusammenfassungen, Übersetzungen"
+    },
+
+    {
+      "id": "gemini-pro-api",
+      "name": "Gemini Pro (API)",
+      "anbieter": "gemini",
+      "modell": "gemini-3.1-pro-preview",
+      "kategorien": ["langer_kontext", "analyse", "recherche", "mathe"],
+      "niveau": 3,
+      "kosten": 4,
+      "max_tokens": 16384,
+      "max_kontext_zeichen": 2000000,
+      "staerken": "tiefe Analyse sehr großer Dokumente, Mathematik, komplexe Recherche"
+    },
+
+    {
+      "id": "chatgpt-mini-api",
+      "name": "ChatGPT Mini (API)",
+      "anbieter": "openai",
+      "modell": "gpt-5.4-mini",
+      "kategorien": ["kreativ", "text", "chat"],
+      "niveau": 2,
+      "kosten": 2,
+      "max_tokens": 4096,
+      "max_kontext_zeichen": 400000,
+      "extra": {
+        "reasoning_effort": "low"
+      },
+      "staerken": "kreatives Schreiben, Werbetexte, Social Media, Brainstorming"
+    },
+
+    {
+      "id": "chatgpt-api",
+      "name": "ChatGPT (API)",
+      "anbieter": "openai",
+      "modell": "gpt-5.5",
+      "kategorien": ["kreativ", "text", "code", "analyse"],
+      "niveau": 3,
+      "kosten": 4,
+      "max_tokens": 8192,
+      "max_kontext_zeichen": 2000000,
+      "staerken": "anspruchsvolle kreative Texte, Konzepte, Strategie, komplexe Aufgaben"
+    }
+  ]
+}
