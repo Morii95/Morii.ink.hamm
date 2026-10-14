@@ -61,7 +61,8 @@ Im Reiter **Verbrauch** siehst du, wie viel Prozent lokal erledigt wurden.
    npm install -g @google/gemini-cli
    npm install -g @openai/codex
    ```
-   Jedes Programm **einmal normal starten und anmelden** (`claude`, `gemini`, `codex`). Danach nutzt der Dirigent
+   Jedes Programm **einmal normal starten und anmelden** (`claude`, `gemini`, `codex`). Am besten tust du das im
+   Ordner `arbeitsplatz` und bestätigst ihn als vertrauenswürdig, denn dort arbeiten die Programme später. Danach nutzt der Dirigent
    die Programme automatisch. Die Desktop-Apps (Claude Desktop, ChatGPT-App) lassen sich von außen nicht steuern.
 4. **Optional: API-Schlüssel** als Reserve: `.env.example` nach `.env` kopieren und eintragen.
 5. **Starten**: unter Windows Doppelklick auf `start.bat`, unter macOS/Linux `./start.sh`.
@@ -150,9 +151,10 @@ dein Konto gerade anbietet. Den passenden Namen trägst du dann in `config.json`
 - **„Ollama nicht erreichbar“**: Starte Ollama (App öffnen oder `ollama serve`).
 - **Ein Programm erscheint als „nicht gefunden“**: Prüfe im Terminal `claude --version` usw. Wurde es gerade erst
   installiert, startest du den Dirigenten neu.
-- **Die Gemini CLI oder Codex reagiert nicht**: Bei manchen Versionen musst du den `befehl` anpassen, z. B.
-  `["gemini", "-m", "gemini-3-flash-preview", "-p", "{prompt}"]`. Unter Windows sind dann sehr lange Aufgaben
-  begrenzt.
+- **Die Gemini CLI oder Codex reagiert nicht**: Starte das Programm einmal selbst im Terminal und melde dich an.
+  Die Befehle in `config.json` sind auf die Gemini CLI 0.64 und Codex 0.162 abgestimmt. Die Aufgabe geht über die
+  Standardeingabe, und beide laufen nur lesend (`--approval-mode plan` bzw. `-s read-only`). Dateien schreibt der
+  Dirigent selbst in den Arbeitsplatz.
 - **Claude Code rechnet über die API ab statt übers Abo**: Der Dirigent entfernt `ANTHROPIC_API_KEY` beim Start
   von Claude Code automatisch (`env_entfernen`), damit dein Abo genutzt wird.
 
