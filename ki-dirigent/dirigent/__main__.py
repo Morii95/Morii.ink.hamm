@@ -30,9 +30,11 @@ def main():
 
     prog = dirigent.programme
     fehlen = prog.fehlende(dirigent.benoetigte_programme())
-    if fehlen and cfg.get("programme", {}).get("automatisch_suchen", True) and time.time() - prog.letzte_suche > 86400:
-        print(f"\n  Suche Programme auf allen Laufwerken ({', '.join(fehlen)}) – höchstens 25 Sekunden …")
-        prog.suchen(zeitlimit=25)
+    if fehlen and cfg.get("programme", {}).get("automatisch_suchen", True):
+        # gründlich einmal am Tag, sonst kurz (neu installierte Programme werden so trotzdem gefunden)
+        gruendlich = time.time() - prog.letzte_suche > 86400
+        print(f"\n  Suche Programme ({', '.join(fehlen)}) – höchstens {25 if gruendlich else 6} Sekunden …")
+        prog.suchen(zeitlimit=25 if gruendlich else 6, tiefe=4 if gruendlich else 2)
         for name, pfad in prog.gefunden.items():
             print(f"    gefunden: {name:7} {pfad}")
     if not prog.ollama_erreichbar():
@@ -43,6 +45,10 @@ def main():
     print(f"\n  KI-Dirigent läuft:   {adresse}")
     print(f"  Arbeitsplatz:        {dirigent.arbeitsplatz.wurzel}")
     print(f"  Ollama:              {'verbunden, ' + str(len(modelle)) + ' Modelle' if ok else 'NICHT erreichbar – ' + fehler}")
+    if ok:
+        print(f"  Ollama-Modelle:      {', '.join(modelle) or 'keine – z. B. ollama pull qwen2.5:7b'}")
+        router = dirigent.router_spez()
+        print(f"  Dirigent plant mit:  {router['modell'] if router else '–'}")
     bereit = [s["name"] for s in dirigent.verfuegbar()]
     print(f"  Bereite Spezialisten: {', '.join(bereit) if bereit else 'keine'}")
     fehlen = prog.fehlende(dirigent.benoetigte_programme())

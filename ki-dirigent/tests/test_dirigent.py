@@ -407,6 +407,26 @@ class ServerTest(unittest.TestCase):
         self.assertIn("Antwort von lokal", "".join(z["message"]["content"] for z in zeilen))
 
 
+class ErsatzmodellTest(unittest.TestCase):
+    def test_auswahl(self):
+        from dirigent.dirigent import ersatzmodell
+        installiert = ["nomic-embed-text:latest", "deepseek-r1:8b", "qwen2.5-coder:7b", "llama3.2:latest"]
+        self.assertEqual(ersatzmodell(installiert, "allgemein"), "llama3.2:latest")
+        self.assertEqual(ersatzmodell(installiert, "code"), "qwen2.5-coder:7b")
+        self.assertIsNone(ersatzmodell(["nomic-embed-text:latest"]))
+
+    def test_lokale_spezialisten_nutzen_installierte_modelle(self):
+        tmp = Path(tempfile.mkdtemp())
+        modelle = ["llama3.2:latest", "qwen2.5-coder:7b", "nomic-embed-text:latest"]
+        d = Dirigent(test_config(tmp), chat_fn=lambda *a, **k: Antwort("ok"), modelle_fn=lambda c: modelle)
+        lokal = {s["id"]: s["modell"] for s in d.verfuegbar() if s["anbieter"] == "ollama"}
+        self.assertEqual(lokal, {"lokal": "llama3.2:latest", "lokal-code": "qwen2.5-coder:7b"})
+        self.assertEqual(d.router_spez()["modell"], "llama3.2:latest")
+        bereit, grund = d.spezialist_status(next(s for s in d.cfg["spezialisten"] if s["id"] == "lokal"))
+        self.assertTrue(bereit)
+        self.assertIn("Ersatzmodell", grund)
+
+
 class ProgrammeTest(unittest.TestCase):
     def setUp(self):
         self.tmp = Path(tempfile.mkdtemp())

@@ -18,6 +18,18 @@ class Abgebrochen(Exception):
     pass
 
 
+def ersatzmodell(installiert: list[str], art: str = "allgemein") -> str | None:
+    """Wählt aus den installierten Ollama-Modellen das passendste (ohne Embedding-Modelle)."""
+    def punkte(name: str) -> int:
+        n = name.lower()
+        code = any(w in n for w in ("coder", "code", "starcoder", "codellama"))
+        denken = any(w in n for w in ("r1", "qwq", "think", "reason"))  # langsamer, für Routing ungeeignet
+        p = (3 if code else -2) if art == "code" else (-2 if code else 2)
+        return p - (1 if denken else 0) - (3 if any(w in n for w in ("vision", "llava")) else 0)
+    kandidaten = [m for m in installiert if "embed" not in m.lower() and "minilm" not in m.lower()]
+    return max(kandidaten, key=punkte) if kandidaten else None
+
+
 def _hash(*teile) -> str:
     return hashlib.sha256(json.dumps(teile, ensure_ascii=False, sort_keys=True).encode("utf-8")).hexdigest()
 
@@ -86,6 +98,9 @@ class Dirigent:
             if not ok:
                 return False, "Ollama nicht erreichbar"
             if not anbieter.ollama_hat(s["modell"], modelle):
+                ersatz = ersatzmodell(modelle, self._art(s))
+                if ersatz:
+                    return True, f"nutzt Ersatzmodell {ersatz} (vorgesehen: ollama pull {s['modell']})"
                 return False, f"Modell fehlt: ollama pull {s['modell']}"
             return True, "bereit (lokal)"
         if a == "cli":
@@ -110,16 +125,29 @@ class Dirigent:
         return {"gefunden": self.programme.gefunden, "fehlen": self.programme.fehlende(self.benoetigte_programme())}
 
     def verfuegbar(self) -> list[dict]:
-        return [s for s in self.cfg["spezialisten"] if self.spezialist_status(s)[0]]
+        bereit = []
+        for s in self.cfg["spezialisten"]:
+            if not self.spezialist_status(s)[0]:
+                continue
+            if s["anbieter"] == "ollama":
+                modell = self._lokales_modell(s["modell"], self._art(s))
+                if modell and modell != s["modell"]:
+                    s = {**s, "modell": modell, "name": f"{s['name']} ({modell})"}
+            bereit.append(s)
+        return bereit
 
-    def _lokales_modell(self, wunsch: str) -> str | None:
+    def _lokales_modell(self, wunsch: str, art: str = "allgemein") -> str | None:
+        """Gewünschtes Ollama-Modell – oder das passendste installierte als Ersatz."""
         ok, modelle, _ = self.ollama_status()
         if not ok or not modelle:
             return None
         if anbieter.ollama_hat(wunsch, modelle):
             return wunsch
-        chat_modelle = [m for m in modelle if "embed" not in m.lower()]
-        return chat_modelle[0] if chat_modelle else None
+        return ersatzmodell(modelle, art)
+
+    @staticmethod
+    def _art(s: dict) -> str:
+        return "code" if s.get("kategorien") == ["code"] else "allgemein"
 
     def router_spez(self):
         m = self._lokales_modell(self.cfg["ollama"].get("router_modell", ""))

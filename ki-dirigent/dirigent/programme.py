@@ -117,7 +117,8 @@ class Programme:
                             neu[name] = str(Path(ordner) / d)
             with self.lock:
                 self.gefunden.update(neu)
-                self.letzte_suche = time.time()
+                if tiefe >= 4:  # nur die gründliche Suche zählt für "einmal am Tag"
+                    self.letzte_suche = time.time()
                 try:
                     self.datei.write_text(json.dumps({"gefunden": self.gefunden, "zeit": self.letzte_suche},
                                                      indent=1, ensure_ascii=False), encoding="utf-8")
@@ -138,7 +139,7 @@ class Programme:
         except OSError:
             return False
 
-    def ollama_starten(self, warten: float = 20) -> tuple[bool, str]:
+    def ollama_starten(self, warten: float = 60) -> tuple[bool, str]:
         """Startet `ollama serve`, wenn Ollama lokal laufen soll, aber nicht antwortet."""
         o = self.cfg["ollama"]
         if not o.get("autostart", True):
