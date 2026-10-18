@@ -1,6 +1,8 @@
 """Start: python -m dirigent  [--port 8765] [--host 127.0.0.1] [--config pfad] [--kein-browser]"""
 import argparse
+import sys
 import threading
+import time
 import webbrowser
 
 from .config import lade_config
@@ -15,6 +17,10 @@ def main():
     ap.add_argument("--port", type=int)
     ap.add_argument("--kein-browser", action="store_true", help="Browser nicht automatisch öffnen")
     args = ap.parse_args()
+    try:
+        sys.stdout.reconfigure(line_buffering=True)  # Meldungen sofort anzeigen
+    except (AttributeError, ValueError):
+        pass
 
     cfg = lade_config(args.config)
     dirigent = Dirigent(cfg)
@@ -22,12 +28,26 @@ def main():
     host, port = server.server_address[:2]
     adresse = f"http://{'localhost' if host in ('127.0.0.1', '0.0.0.0', '::') else host}:{port}"
 
+    prog = dirigent.programme
+    fehlen = prog.fehlende(dirigent.benoetigte_programme())
+    if fehlen and cfg.get("programme", {}).get("automatisch_suchen", True) and time.time() - prog.letzte_suche > 86400:
+        print(f"\n  Suche Programme auf allen Laufwerken ({', '.join(fehlen)}) – höchstens 25 Sekunden …")
+        prog.suchen(zeitlimit=25)
+        for name, pfad in prog.gefunden.items():
+            print(f"    gefunden: {name:7} {pfad}")
+    if not prog.ollama_erreichbar():
+        print("  Ollama läuft nicht – starte es …")
+        gestartet, meldung = prog.ollama_starten()
+        print(f"    {meldung}")
     ok, modelle, fehler = dirigent.ollama_status(neu=True)
     print(f"\n  KI-Dirigent läuft:   {adresse}")
     print(f"  Arbeitsplatz:        {dirigent.arbeitsplatz.wurzel}")
     print(f"  Ollama:              {'verbunden, ' + str(len(modelle)) + ' Modelle' if ok else 'NICHT erreichbar – ' + fehler}")
     bereit = [s["name"] for s in dirigent.verfuegbar()]
     print(f"  Bereite Spezialisten: {', '.join(bereit) if bereit else 'keine'}")
+    fehlen = prog.fehlende(dirigent.benoetigte_programme())
+    if fehlen:
+        print(f"  Nicht gefunden:      {', '.join(fehlen)}  → Pfade in config.json bei programme.pfade eintragen")
     print(f"  Für Open WebUI & Co: {adresse}/ollama  (Modell 'dirigent')")
     print("  Beenden mit Strg+C\n")
 

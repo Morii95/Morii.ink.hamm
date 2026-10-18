@@ -407,5 +407,90 @@ class ServerTest(unittest.TestCase):
         self.assertIn("Antwort von lokal", "".join(z["message"]["content"] for z in zeilen))
 
 
+class ProgrammeTest(unittest.TestCase):
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp())
+        self.cfg = test_config(self.tmp)
+        self.laufwerk = self.tmp / "D" / "Tools" / "Ollama"
+        self.laufwerk.mkdir(parents=True)
+        self.exe = self.laufwerk / "ollama"
+        self.exe.write_text("#!/bin/sh\nexit 0\n")
+        self.exe.chmod(self.exe.stat().st_mode | stat.S_IEXEC)
+
+    def test_eigene_pfade(self):
+        from dirigent.programme import Programme
+        self.cfg["programme"] = {"pfade": [str(self.laufwerk)]}
+        p = Programme(self.cfg)
+        self.assertEqual(p.finde("ollama"), str(self.exe))
+        self.assertIn(str(self.laufwerk), p.umgebung({"PATH": "/usr/bin"})["PATH"])
+        self.assertIsNone(p.finde("gibt-es-nicht-xyz"))
+
+    def test_laufwerkssuche_merkt_sich_fundort(self):
+        from dirigent.programme import Programme
+        p = Programme(self.cfg)
+        p.suchen(zeitlimit=10, wurzeln=[self.tmp / "D"])
+        self.assertEqual(p.gefunden.get("ollama"), str(self.exe))
+        self.assertEqual(Programme(self.cfg).finde("ollama"), str(self.exe))  # aus programme.json
+
+    def test_cli_spezialist_wird_ueber_suche_gefunden(self):
+        (self.laufwerk / "gemini").write_text("#!/bin/sh\n")
+        (self.laufwerk / "gemini").chmod(0o755)
+        self.cfg["programme"] = {"pfade": [str(self.laufwerk)]}
+        self.cfg["spezialisten"].append({"id": "g", "name": "G", "anbieter": "cli", "befehl": ["gemini"],
+                                         "kategorien": ["alles"], "niveau": 2, "kosten": 1, "max_tokens": 1,
+                                         "max_kontext_zeichen": 1, "aktiv": "auto", "extra": {}, "staerken": ""})
+        d = Dirigent(self.cfg, chat_fn=lambda *a, **k: Antwort("ok"), modelle_fn=lambda c: [])
+        self.assertTrue(d.spezialist_status(self.cfg["spezialisten"][-1])[0])
+
+    def test_autostart_ohne_programm(self):
+        from dirigent.programme import Programme
+        self.cfg["ollama"]["url"] = "http://127.0.0.1:1"
+        self.cfg["ollama"]["programm"] = str(self.tmp / "fehlt" / "ollama.exe")
+        ok, meldung = Programme(self.cfg).ollama_starten(warten=1)
+        self.assertFalse(ok)
+        self.assertIn("nicht gefunden", meldung)
+        self.cfg["ollama"]["autostart"] = False
+        self.assertIn("ausgeschaltet", Programme(self.cfg).ollama_starten()[1])
+
+
+class AktualisierenTest(unittest.TestCase):
+    def test_update_aus_zip(self):
+        import zipfile
+        from dirigent import aktualisieren as akt
+        tmp = Path(tempfile.mkdtemp())
+        basis = tmp / "ki-dirigent"
+        (basis / "dirigent").mkdir(parents=True)
+        (basis / "arbeitsplatz").mkdir()
+        (basis / "dirigent" / "alt.py").write_text("alt")
+        (basis / "arbeitsplatz" / "meins.txt").write_text("bleibt")
+        (basis / ".env").write_text("KEY=geheim")
+        (basis / "config.json").write_text(json.dumps({"ollama": {"programm": "D:\\Ollama\\ollama.exe", "url": "u"},
+                                                       "spezialisten": [1]}))
+        (basis / "daten").mkdir()
+        (basis / "daten" / akt.AUSGELIEFERT).write_text(json.dumps({"ollama": {"programm": "", "url": "u"},
+                                                                    "spezialisten": [1]}))
+        zipdatei = tmp / "neu.zip"
+        with zipfile.ZipFile(zipdatei, "w") as zf:
+            zf.writestr("Repo-zweig/index.html", "Website")
+            zf.writestr("Repo-zweig/ki-dirigent/dirigent/neu.py", "neu")
+            zf.writestr("Repo-zweig/ki-dirigent/start.bat", "start")
+            zf.writestr("Repo-zweig/ki-dirigent/arbeitsplatz/fremd.txt", "darf nicht kommen")
+            zf.writestr("Repo-zweig/ki-dirigent/config.json", json.dumps(
+                {"ollama": {"programm": "", "url": "u", "autostart": True}, "spezialisten": [1, 2]}))
+        ergebnis = akt.aktualisieren(str(zipdatei), basis)
+        self.assertFalse((basis / "dirigent" / "alt.py").exists())
+        self.assertEqual((basis / "dirigent" / "neu.py").read_text(), "neu")
+        self.assertEqual((basis / "arbeitsplatz" / "meins.txt").read_text(), "bleibt")
+        self.assertFalse((basis / "arbeitsplatz" / "fremd.txt").exists())
+        self.assertEqual((basis / ".env").read_text(), "KEY=geheim")
+        self.assertFalse((basis / "index.html").exists())
+        cfg = json.loads((basis / "config.json").read_text())
+        self.assertEqual(cfg["ollama"]["programm"], "D:\\Ollama\\ollama.exe")  # eigene Änderung bleibt
+        self.assertTrue(cfg["ollama"]["autostart"])  # neue Einstellung kommt dazu
+        self.assertEqual(cfg["spezialisten"], [1, 2])  # unverändertes wird aktualisiert
+        self.assertTrue((basis / "config.vorher.json").exists())
+        self.assertEqual(ergebnis["kopiert"], 2)  # neu.py + start.bat (config.json wird zusammengeführt)
+
+
 if __name__ == "__main__":
     unittest.main()

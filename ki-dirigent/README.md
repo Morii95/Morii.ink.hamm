@@ -68,6 +68,33 @@ Im Reiter **Verbrauch** siehst du, wie viel Prozent lokal erledigt wurden.
 5. **Starten**: unter Windows Doppelklick auf `start.bat`, unter macOS/Linux `./start.sh`.
    Der Browser öffnet sich unter <http://localhost:8765>.
 
+### Programme auf anderen Laufwerken (z. B. D:)
+
+Du musst nichts von Hand eintragen:
+
+- **Automatische Suche**: Findet der Dirigent Ollama, Claude Code, Gemini CLI oder Codex nicht im normalen
+  Suchpfad, durchsucht er beim Start alle Laufwerke. Zuerst kommen D:, E: usw., C: zuletzt, und die Suche dauert
+  höchstens 25 Sekunden. Die Fundorte merkt er sich in `daten/programme.json`, deshalb geht der nächste Start schnell.
+  Erneut suchen kannst du jederzeit unter **Spezialisten → auf allen Laufwerken suchen**.
+- **Ollama startet automatisch**, wenn es nicht läuft (`ollama serve` im Hintergrund).
+- **Von Hand**: Findet die Suche etwas nicht, trägst du den Ordner in `config.json` ein:
+  ```json
+  "programme": { "pfade": ["D:\\Ollama", "D:\\nodejs", "D:\\npm"] },
+  "ollama":    { "programm": "D:\\Ollama\\ollama.exe" }
+  ```
+  Unter Windows schreibst du den Backslash doppelt (`\\`).
+
+### Aktualisieren
+
+Ein Doppelklick auf **`update.bat`** (macOS/Linux: `./update.sh`) lädt den neuesten Stand von GitHub und ersetzt
+den Code direkt in diesem Ordner.
+
+- **Bleibt erhalten**: `arbeitsplatz/`, `daten/` (Gespräche, Suchindex) und `.env`.
+- **config.json**: Deine Änderungen werden übernommen, die alte Fassung liegt danach als `config.vorher.json`
+  daneben.
+
+Danach startest du `start.bat` neu.
+
 ## Bedienung
 
 - **Mitte**: Aufgabe eintippen. Über jeder Antwort zeigt eine Zeile den Weg, zum Beispiel

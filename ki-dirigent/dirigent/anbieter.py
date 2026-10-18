@@ -315,8 +315,12 @@ def _gemini(cfg, modell, system, nachrichten, max_tokens, extra, on_delta, json_
 
 # ---------------------------------------------------------------- Installierte Programme (CLI)
 
-def cli_pfad(befehl: list[str]) -> str | None:
-    return shutil.which(befehl[0]) if befehl else None
+def cli_pfad(befehl: list[str], cfg: dict | None = None) -> str | None:
+    """Programm suchen: PATH, eigene Ordner aus config.json und Fundorte der Laufwerkssuche."""
+    if not befehl:
+        return None
+    programme = (cfg or {}).get("_programme")
+    return programme.finde(befehl[0]) if programme else shutil.which(befehl[0])
 
 
 def _feld(obj, pfad: str):
@@ -329,7 +333,7 @@ def _feld(obj, pfad: str):
 
 def _cli(cfg, spez, system, nachrichten, on_delta, timeout, arbeitsordner, abbruch):
     befehl = list(spez.get("befehl") or [])
-    programm = cli_pfad(befehl)
+    programm = cli_pfad(befehl, cfg)
     if not programm:
         raise AnbieterFehler(f"Programm '{befehl[0] if befehl else '?'}' nicht gefunden (PATH)")
 
@@ -349,6 +353,8 @@ def _cli(cfg, spez, system, nachrichten, on_delta, timeout, arbeitsordner, abbru
     argumente = [a.replace("{prompt}", prompt) for a in argumente]
 
     umgebung = dict(os.environ)
+    if cfg.get("_programme"):
+        umgebung = cfg["_programme"].umgebung(umgebung)  # z. B. node.exe auf D: für gemini.cmd
     for name in spez.get("env_entfernen", []):
         umgebung.pop(name, None)  # z. B. API-Schlüssel entfernen, damit das Abo genutzt wird
 
@@ -396,6 +402,11 @@ def _cli(cfg, spez, system, nachrichten, on_delta, timeout, arbeitsordner, abbru
     finally:
         timer.cancel()
     t_err.join(timeout=2)
+    for strom in (proc.stdout, proc.stderr):
+        try:
+            strom.close()
+        except OSError:
+            pass
     stderr = "".join(fehler_puffer).strip()
     if proc.returncode != 0:
         raise AnbieterFehler(f"{befehl[0]} beendet mit Code {proc.returncode}: {(stderr or text)[-600:]}")
@@ -468,7 +479,7 @@ def modelle_auflisten(cfg, anbieter: str) -> list[str]:
     if anbieter == "cli":
         gefunden = []
         for name in ("claude", "gemini", "codex", "ollama"):
-            pfad = shutil.which(name)
+            pfad = cli_pfad([name], cfg)
             if pfad:
                 gefunden.append(f"{name}: {pfad}")
         return gefunden

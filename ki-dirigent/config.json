@@ -11,7 +11,14 @@
     "helfer_modell": "qwen2.5:7b",
     "embedding_modell": "nomic-embed-text",
     "num_ctx": 8192,
-    "keep_alive": "30m"
+    "keep_alive": "30m",
+    "autostart": true,
+    "programm": ""
+  },
+
+  "programme": {
+    "pfade": [],
+    "automatisch_suchen": true
   },
 
   "anthropic": { "base_url": "https://api.anthropic.com" },

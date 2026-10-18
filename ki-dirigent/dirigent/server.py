@@ -160,6 +160,8 @@ class Handler(BaseHTTPRequestHandler):
         if route == ("POST", "/api/verbindung"):
             a = self._body().get("anbieter", "")
             return {"anbieter": a, "modelle": anbieter.modelle_auflisten(d.cfg, a)}
+        if route == ("POST", "/api/programme/suchen"):
+            return d.programme_suchen(zeitlimit=float(self._body().get("zeitlimit", 30)))
         if route == ("GET", "/api/verbrauch"):
             return sp.verbrauch_statistik()
 

@@ -156,7 +156,17 @@ function zeigeSpezialisten() {
     el("div", { class: "klein" }, o.erreichbar
       ? `Plant mit ${o.router || "–"} · bereitet vor mit ${o.helfer || "–"} · Suche: ${o.embedding || "nur Text (ollama pull nomic-embed-text für Bedeutungssuche)"}`
       : `Nicht erreichbar unter ${o.url}. Ollama starten oder installieren: https://ollama.com`),
+    o.autostart ? el("div", { class: "klein" }, "Autostart: " + o.autostart) : null,
     el("div", { class: "klein", id: "test-ollama" })));
+  const pr = st.programme || { gefunden: {} };
+  const gefunden = Object.entries(pr.gefunden || {});
+  $("#ollama-info").append(el("div", { class: "karte" },
+    el("div", { class: "karte-kopf" }, "Programme auf dem PC", el("span", { class: "platz" }),
+      el("button", { class: "knopf klein", id: "programme-suchen", onclick: programmeSuchen }, pr.suche_laeuft ? "sucht …" : "auf allen Laufwerken suchen")),
+    el("div", { class: "klein" }, gefunden.length
+      ? gefunden.map(([n, p]) => `${n}: ${p}`).join(" · ")
+      : "Noch nichts gesucht. Liegen Ollama, Gemini CLI oder Codex z. B. auf D:, findet die Suche sie."),
+    el("div", { class: "klein", id: "programme-ergebnis" })));
   const liste = $("#spez-liste"); liste.innerHTML = "";
   const gruppen = [["cli", "Installierte Programme (dein Abo)"], ["ollama", "Lokal (kostenlos)"], ["anthropic", "Claude-API"], ["gemini", "Gemini-API"], ["openai", "ChatGPT-API"]];
   for (const [a, titel] of gruppen) {
@@ -174,6 +184,16 @@ function zeigeSpezialisten() {
         el("div", { class: "klein" }, s.grund)));
     }
   }
+}
+
+async function programmeSuchen() {
+  const k = $("#programme-suchen"), ziel = $("#programme-ergebnis");
+  if (k) { k.disabled = true; k.textContent = "sucht … (bis 30 s)"; }
+  try {
+    const d = await api("/api/programme/suchen", { methode: "POST", body: {} });
+    if (ziel) ziel.textContent = d.fehlen.length ? "Nicht gefunden: " + d.fehlen.join(", ") + " – Pfad in config.json bei programme.pfade eintragen." : "Alle benötigten Programme gefunden.";
+  } catch (e) { if (ziel) ziel.textContent = "Fehler: " + e.message; }
+  await ladeStatus();
 }
 
 async function testeVerbindung(a) {

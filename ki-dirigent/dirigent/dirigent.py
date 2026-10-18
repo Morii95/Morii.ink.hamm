@@ -10,6 +10,7 @@ from pathlib import Path
 from . import anbieter, router
 from .arbeitsplatz import Arbeitsplatz
 from .pc import PC
+from .programme import Programme
 from .speicher import Speicher
 
 
@@ -55,8 +56,11 @@ class Dirigent:
         self.pc = PC(cfg, self.speicher)
         self.pc.embed = self._embed
         self.pc.zusammenfassen = self._datei_beschreiben
+        self.programme = Programme(cfg)
+        cfg["_programme"] = self.programme
         self._chat = chat_fn or anbieter.chat
         self._modelle = modelle_fn or anbieter.ollama_modelle
+        self._autostart = modelle_fn is None  # in Tests kein echtes Ollama starten
         self._ollama = (0.0, False, [], "")
         self._lock = threading.Lock()
 
@@ -68,6 +72,8 @@ class Dirigent:
                 modelle, ok, fehler = self._modelle(self.cfg), True, ""
             except Exception as e:  # noqa: BLE001
                 modelle, ok, fehler = [], False, str(e)
+                if self._autostart:  # Ollama im Hintergrund starten, nächste Prüfung sieht es dann
+                    threading.Thread(target=self.programme.ollama_starten, daemon=True).start()
             self._ollama = (time.time(), ok, modelle, fehler)
         return ok, modelle, fehler
 
@@ -83,12 +89,25 @@ class Dirigent:
                 return False, f"Modell fehlt: ollama pull {s['modell']}"
             return True, "bereit (lokal)"
         if a == "cli":
-            pfad = anbieter.cli_pfad(s.get("befehl") or [])
+            pfad = anbieter.cli_pfad(s.get("befehl") or [], self.cfg)
             return (True, f"Programm gefunden: {pfad}") if pfad else (False, f"Programm '{(s.get('befehl') or ['?'])[0]}' nicht gefunden")
         if a in ("anthropic", "openai", "gemini"):
             from .config import api_schluessel
             return (True, "API-Schlüssel vorhanden") if api_schluessel(a) else (False, "kein API-Schlüssel (.env)")
         return False, f"unbekannter Anbieter {a}"
+
+    def benoetigte_programme(self) -> list[str]:
+        namen = ["ollama"] if self.cfg["ollama"].get("autostart", True) else []
+        namen += [s["befehl"][0] for s in self.cfg["spezialisten"]
+                  if s["anbieter"] == "cli" and s.get("aktiv") is not False and s.get("befehl")]
+        return list(dict.fromkeys(namen))
+
+    def programme_suchen(self, zeitlimit: float = 25) -> dict:
+        self.programme.suchen(zeitlimit=zeitlimit)
+        if not self.ollama_status(neu=True)[0] and self._autostart:
+            self.programme.ollama_starten()
+        self.ollama_status(neu=True)
+        return {"gefunden": self.programme.gefunden, "fehlen": self.programme.fehlende(self.benoetigte_programme())}
 
     def verfuegbar(self) -> list[dict]:
         return [s for s in self.cfg["spezialisten"] if self.spezialist_status(s)[0]]
@@ -127,7 +146,10 @@ class Dirigent:
         r, h = self.router_spez(), self.helfer_spez()
         sparen = self.cfg["sparen"]
         return {
+            "programme": {"gefunden": self.programme.gefunden, "ordner": self.programme.ordner(),
+                          "suche_laeuft": self.programme.suche_laeuft},
             "ollama": {"erreichbar": ok, "url": self.cfg["ollama"]["url"], "modelle": modelle, "fehler": fehler,
+                       "autostart": self.programme.ollama_meldung,
                        "router": r["modell"] if r else None, "helfer": h["modell"] if h else None,
                        "embedding": self.embedding_modell()},
             "spezialisten": spez,
