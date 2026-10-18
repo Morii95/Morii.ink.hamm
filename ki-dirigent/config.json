@@ -17,6 +17,7 @@
   },
 
   "programme": {
+    "installationsordner": "",
     "pfade": [],
     "automatisch_suchen": true
   },

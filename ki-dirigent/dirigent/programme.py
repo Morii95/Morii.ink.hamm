@@ -18,12 +18,20 @@ NAMEN = {
     "gemini": ["gemini.cmd", "gemini.exe", "gemini"],
     "codex": ["codex.cmd", "codex.exe", "codex"],
     "node": ["node.exe", "node"],
+    "npm": ["npm.cmd", "npm"],
 }
+
+# Desktop-Apps lassen sich nicht fernsteuern – erkennen, um einen klaren Hinweis zu geben
+DESKTOP_APPS = {"chatgpt.exe": "ChatGPT-Desktop-App", "gemini.exe": "Gemini-Desktop-App",
+                "claude.exe": "Claude-Desktop-App"}
+# Ordner, in denen eine gleichnamige Datei die Desktop-App ist und nicht das Kommandozeilen-Programm
+DESKTOP_ORDNER = ("anthropicclaude", "windowsapps", "openai.chatgpt")
 
 UEBERSPRINGEN = {
     "windows", "$recycle.bin", "system volume information", "recovery", "perflogs", "msocache",
     ".git", "__pycache__", ".cache", "temp", "tmp", "proc", "sys", "dev", "snap",
     "steamapps", "games", "videos", "music", "pictures", "bilder", "fotos",
+    ".vscode", ".gradle", ".m2", ".nuget", ".cargo", ".rustup", ".android", ".docker", ".ollama",
 }
 
 
@@ -38,6 +46,7 @@ class Programme:
         self.cfg = cfg
         self.datei = Path(cfg["daten_pfad"]) / "programme.json"
         self.gefunden: dict[str, str] = {}
+        self.apps: dict[str, str] = {}  # gefundene Desktop-Apps (nur zur Info)
         self.lock = threading.Lock()
         self.suche_laeuft = False
         self.letzte_suche = 0.0
@@ -83,12 +92,13 @@ class Programme:
 
     # ---------------------------------------------------------- Suche auf allen Laufwerken
     def _wurzeln(self) -> list[Path]:
+        eigener = self.installationsordner()
         if os.name == "nt":
             laufwerke = [Path(f"{b}:\\") for b in string.ascii_uppercase if os.path.exists(f"{b}:\\")]
             laufwerke.sort(key=lambda p: str(p).upper().startswith("C:"))  # D:, E: … zuerst, C: zuletzt
             feste = [Path(os.path.expandvars(p)) for p in (r"%LOCALAPPDATA%\Programs\Ollama", r"%APPDATA%\npm",
                                                          r"%ProgramFiles%\nodejs", r"%LOCALAPPDATA%\Programs")]
-            return [p for p in feste if p.is_dir()] + laufwerke
+            return [p for p in [eigener] + feste if p.is_dir()] + laufwerke
         return [p for p in (Path.home(), Path("/opt"), Path("/usr/local"), Path("/Applications")) if p.is_dir()]
 
     def suchen(self, zeitlimit: float = 25, tiefe: int = 4, wurzeln: list[Path] | None = None) -> dict[str, str]:
@@ -101,20 +111,36 @@ class Programme:
             gesucht = {dateiname.lower(): name for name, liste in NAMEN.items() for dateiname in liste}
             neu: dict[str, str] = {}
             ende = time.time() + zeitlimit
+
+            def pruefe(ordner: Path, dateien):
+                desktop = any(w in str(ordner).lower() for w in DESKTOP_ORDNER)
+                for d in dateien:
+                    klein = d.lower()
+                    if klein in DESKTOP_APPS and (desktop or klein != "claude.exe"):
+                        self.apps.setdefault(DESKTOP_APPS[klein], str(ordner / d))
+                        if desktop or klein in ("chatgpt.exe", "gemini.exe"):
+                            continue
+                    name = gesucht.get(klein)
+                    if name and name not in neu and not desktop and _ausfuehrbar(ordner / d):
+                        neu[name] = str(ordner / d)
+
             for wurzel in wurzeln or self._wurzeln():
                 basis_tiefe = len(wurzel.parts)
                 for ordner, unter, dateien in os.walk(wurzel, onerror=lambda e: None):
                     if time.time() > ende or len(neu) == len(NAMEN):
                         break
-                    if len(Path(ordner).parts) - basis_tiefe >= tiefe:
+                    o = Path(ordner)
+                    pruefe(o, dateien)
+                    if any(d.lower() == "node_modules" for d in unter):  # lokale npm-Installation
+                        bin_ordner = o / "node_modules" / ".bin"
+                        try:
+                            pruefe(bin_ordner, os.listdir(bin_ordner))
+                        except OSError:
+                            pass
+                    if len(o.parts) - basis_tiefe >= tiefe:
                         unter[:] = []
                     else:
-                        unter[:] = [d for d in unter if d.lower() not in UEBERSPRINGEN
-                                    and d.lower() != "node_modules" and not d.startswith(".")]
-                    for d in dateien:
-                        name = gesucht.get(d.lower())
-                        if name and name not in neu and _ausfuehrbar(Path(ordner) / d):
-                            neu[name] = str(Path(ordner) / d)
+                        unter[:] = [d for d in unter if d.lower() not in UEBERSPRINGEN and d.lower() != "node_modules"]
             with self.lock:
                 self.gefunden.update(neu)
                 if tiefe >= 4:  # nur die gründliche Suche zählt für "einmal am Tag"
@@ -127,6 +153,11 @@ class Programme:
             return dict(self.gefunden)
         finally:
             self.suche_laeuft = False
+
+    def installationsordner(self) -> Path:
+        """Wohin einrichten.bat installiert (Standard: D:\\KI3D unter Windows, sonst ~/KI3D)."""
+        wert = self.cfg.get("programme", {}).get("installationsordner") or ("D:\\KI3D" if os.name == "nt" else "~/KI3D")
+        return Path(os.path.expanduser(wert))
 
     def fehlende(self, namen: list[str]) -> list[str]:
         return [n for n in namen if not self.finde(n)]

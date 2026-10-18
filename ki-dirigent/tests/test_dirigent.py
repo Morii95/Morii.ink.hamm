@@ -462,6 +462,24 @@ class ProgrammeTest(unittest.TestCase):
         d = Dirigent(self.cfg, chat_fn=lambda *a, **k: Antwort("ok"), modelle_fn=lambda c: [])
         self.assertTrue(d.spezialist_status(self.cfg["spezialisten"][-1])[0])
 
+    def test_suche_findet_lokale_npm_installation_und_erkennt_desktop_apps(self):
+        from dirigent.programme import Programme
+        lokal = self.tmp / "D" / "KI3D" / "gemini" / "node_modules" / ".bin"
+        lokal.mkdir(parents=True)
+        (lokal / "gemini").write_text("#!/bin/sh\n")
+        (lokal / "gemini").chmod(0o755)
+        app = self.tmp / "D" / "AnthropicClaude" / "app-1.0"
+        app.mkdir(parents=True)
+        (app / "claude.exe").write_text("x")
+        (app / "claude.exe").chmod(0o755)
+        (self.tmp / "D" / "ChatGPT.exe").write_text("x")
+        p = Programme(self.cfg)
+        p.suchen(zeitlimit=10, wurzeln=[self.tmp / "D"])
+        self.assertEqual(p.gefunden.get("gemini"), str(lokal / "gemini"))
+        self.assertNotIn("claude", p.gefunden)  # Desktop-App ist kein Kommandozeilen-Programm
+        self.assertIn("ChatGPT-Desktop-App", p.apps)
+        self.assertIn("Claude-Desktop-App", p.apps)
+
     def test_autostart_ohne_programm(self):
         from dirigent.programme import Programme
         self.cfg["ollama"]["url"] = "http://127.0.0.1:1"
@@ -471,6 +489,35 @@ class ProgrammeTest(unittest.TestCase):
         self.assertIn("nicht gefunden", meldung)
         self.cfg["ollama"]["autostart"] = False
         self.assertIn("ausgeschaltet", Programme(self.cfg).ollama_starten()[1])
+
+
+class EinrichtenTest(unittest.TestCase):
+    def test_installiert_fehlende_programme_in_zielordner(self):
+        from dirigent.einrichten import Einrichtung
+        tmp = Path(tempfile.mkdtemp())
+        bin_ordner = tmp / "bin"
+        bin_ordner.mkdir()
+        (bin_ordner / "node").write_text("#!/bin/sh\necho v22.1.0\n")
+        # Fake-npm: legt für jedes Paket ein Programm im --prefix an
+        (bin_ordner / "npm").write_text(
+            "#!" + sys.executable + "\nimport sys, os\na = sys.argv\np = a[a.index('--prefix') + 1]\n"
+            "os.makedirs(os.path.join(p, 'bin'), exist_ok=True)\n"
+            "for pkg in a[a.index('--prefix') + 2:]:\n"
+            "    n = {'@google/gemini-cli': 'gemini', '@openai/codex': 'codex', '@anthropic-ai/claude-code': 'claude'}[pkg]\n"
+            "    f = os.path.join(p, 'bin', n); open(f, 'w').write('#!/bin/sh\\n'); os.chmod(f, 0o755)\n")
+        for f in bin_ordner.iterdir():
+            f.chmod(0o755)
+        alter_pfad = os.environ["PATH"]
+        os.environ["PATH"] = f"{bin_ordner}{os.pathsep}/usr/bin{os.pathsep}/bin"
+        try:
+            e = Einrichtung(str(tmp / "KI3D"), ja=True, trocken=False)
+            e.prog.gefunden = {}
+            e.programme_installieren()
+            self.assertTrue(set(e.installiert) >= {"gemini", "codex"})
+            self.assertEqual(e.prog.finde("gemini"), str(tmp / "KI3D" / "npm" / "bin" / "gemini"))
+            self.assertIn(str(tmp / "KI3D" / "npm" / "bin"), e.neue_pfade)
+        finally:
+            os.environ["PATH"] = alter_pfad
 
 
 class AktualisierenTest(unittest.TestCase):

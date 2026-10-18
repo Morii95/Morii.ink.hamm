@@ -68,6 +68,24 @@ Im Reiter **Verbrauch** siehst du, wie viel Prozent lokal erledigt wurden.
 5. **Starten**: unter Windows Doppelklick auf `start.bat`, unter macOS/Linux `./start.sh`.
    Der Browser öffnet sich unter <http://localhost:8765>.
 
+### Alles auf D: einrichten (`einrichten.bat`)
+
+Doppelklick auf **`einrichten.bat`**. Das Skript fragt vor jedem Schritt nach. Standardziel ist `D:\KI3D`, ändern
+kannst du es in `config.json` unter `programme.installationsordner`.
+
+1. **Gemini CLI und Codex installieren** (und Claude Code, falls es fehlt). Das geht mit deinem vorhandenen Node.js
+   per npm nach `D:\KI3D\npm`.
+2. **Ollama-Modelle nach D: verschieben** (`D:\KI3D\ollama\modelle`), falls sie noch auf C: liegen. Dafür setzt das
+   Skript `OLLAMA_MODELS`, sodass neue Modelle ebenfalls auf D: landen.
+3. **Fehlende Ollama-Modelle laden**, die der Dirigent braucht.
+4. **Den Dirigenten konfigurieren**: Die neuen Ordner werden in `config.json` eingetragen.
+5. **Anmelden**: Neu installierte Programme werden einmal gestartet, damit du dich anmelden kannst.
+
+`einrichten.bat --trocken` zeigt nur an, was passieren würde, und ändert nichts.
+
+Nur die Anmeldedaten der Programme bleiben in deinem Benutzerordner (`~/.gemini`, `~/.codex`, `~/.claude`). Sie
+sind klein.
+
 ### Programme auf anderen Laufwerken (z. B. D:)
 
 Du musst nichts von Hand eintragen:

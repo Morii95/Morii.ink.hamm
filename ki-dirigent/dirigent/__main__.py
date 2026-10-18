@@ -53,7 +53,11 @@ def main():
     print(f"  Bereite Spezialisten: {', '.join(bereit) if bereit else 'keine'}")
     fehlen = prog.fehlende(dirigent.benoetigte_programme())
     if fehlen:
-        print(f"  Nicht gefunden:      {', '.join(fehlen)}  → Pfade in config.json bei programme.pfade eintragen")
+        print(f"  Nicht gefunden:      {', '.join(fehlen)}  → einrichten.bat installiert sie nach "
+              f"{prog.installationsordner()}")
+        if prog.apps:
+            print(f"  Nur als Desktop-App: {', '.join(prog.apps)} – Desktop-Apps lassen sich nicht steuern, "
+                  f"dafür braucht es die Kommandozeilen-Version")
     print(f"  Für Open WebUI & Co: {adresse}/ollama  (Modell 'dirigent')")
     print("  Beenden mit Strg+C\n")
 
