@@ -2,6 +2,7 @@
 import hashlib
 import json
 import os
+import re
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
@@ -56,8 +57,78 @@ VERDICHTEN_SYSTEM = ("Du verdichtest Gesprächsverläufe für eine andere KI. Sc
 ZUSAMMENFUEHREN_SYSTEM = ("Führe die Teilergebnisse zu einer einheitlichen Antwort auf die ursprüngliche Anfrage "
                           "zusammen. Inhalte, Code und Zahlen unverändert übernehmen; nur ordnen, Doppeltes entfernen "
                           "und Übergänge glätten. Keine Einleitung.")
+FORMULIEREN_SYSTEM = (
+    "Du bist der Dirigent einer KI-Plattform. Du schreibst den Auftrag (Prompt) für eine Spezialisten-KI, die die "
+    "eigentliche Arbeit macht. Regeln:\n"
+    "- Der Prompt muss für sich allein verständlich sein: Ziel, alle nötigen Fakten aus Anfrage und Verlauf (Zahlen, "
+    "Namen, Code, Dateinamen wörtlich), gewünschtes Ergebnis und Format.\n"
+    "- Knapp und präzise, keine Höflichkeitsfloskeln. Verlange eine Antwort ohne Wiederholung der Aufgabe.\n"
+    "- Schreibe in der Sprache der Anfrage. Erfinde nichts dazu.\n"
+    "- vorherige_antwort_noetig = true, wenn sich die Anfrage auf die letzte Antwort bezieht (z. B. 'kürzer', "
+    "'ändere das', 'weiter').\n"
+    "Antworte nur mit JSON.")
+ABSCHLUSS_SYSTEM = (
+    "Du bist der Dirigent einer KI-Plattform. Spezialisten-KIs haben die Anfrage des Nutzers bearbeitet. Gib dem "
+    "Nutzer jetzt die endgültige Antwort:\n"
+    "- Fasse zusammen: Ergebnisse, Fakten und Zahlen vollständig und korrekt übernehmen, Wiederholungen und "
+    "Füllsätze weglassen. Mehrere Teilergebnisse zu einer stimmigen Antwort verbinden.\n"
+    "- Platzhalter wie [[CODE_1]] stehen für Code- oder Dateiblöcke: Setze jeden unverändert an die passende Stelle.\n"
+    "- Keine Einleitung wie 'Hier ist' und keine Bemerkungen über die Spezialisten-KIs.\n"
+    "- Antworte in der Sprache des Nutzers.")
 BESCHREIBEN_SYSTEM = ("Beschreibe in einem Satz (höchstens 25 Wörter), was diese Datei enthält. Nenne wichtige "
                       "Begriffe, Namen und Jahreszahlen. Keine Einleitung.")
+
+
+_CODEBLOCK = re.compile(r"^```[^\n]*\n.*?\n```[ \t]*$", re.S | re.M)
+
+
+def schuetze_code(text: str, start: int = 1) -> tuple[str, list[str]]:
+    """Ersetzt Code-/Dateiblöcke durch [[CODE_n]], damit Ollama sie beim Zusammenfassen nicht verändert."""
+    bloecke: list[str] = []
+
+    def ersetze(m):
+        bloecke.append(m.group(0))
+        return f"[[CODE_{start + len(bloecke) - 1}]]"
+    return _CODEBLOCK.sub(ersetze, text), bloecke
+
+
+class CodeEinsetzer:
+    """Setzt die Original-Codeblöcke wieder ein – auch im Stream; vergessene Blöcke werden angehängt."""
+
+    def __init__(self, bloecke: list[str]):
+        self.bloecke = bloecke
+        self.benutzt: set[int] = set()
+        self.puffer = ""
+        self.ergebnis = ""
+
+    def _ersetze(self, text: str) -> str:
+        def ein(m):
+            nr = int(m.group(1))
+            if 1 <= nr <= len(self.bloecke):
+                self.benutzt.add(nr)
+                return "\n" + self.bloecke[nr - 1] + "\n"
+            return ""
+        return re.sub(r"\[\[CODE_(\d+)\]\]", ein, text)
+
+    def __call__(self, stueck: str) -> str:
+        self.puffer += stueck
+        offen = self.puffer.rfind("[[")
+        if offen >= 0 and "]]" not in self.puffer[offen:] and len(self.puffer) - offen < 16:
+            fertig, self.puffer = self.puffer[:offen], self.puffer[offen:]
+        else:
+            fertig, self.puffer = self.puffer, ""
+        raus = self._ersetze(fertig)
+        self.ergebnis += raus
+        return raus
+
+    def rest(self) -> str:
+        raus = self._ersetze(self.puffer)
+        self.puffer = ""
+        fehlend = [b for i, b in enumerate(self.bloecke, 1) if i not in self.benutzt]
+        if fehlend:
+            raus += "\n\n" + "\n\n".join(fehlend)
+        self.ergebnis += raus
+        return raus
 
 
 class Dirigent:
@@ -436,6 +507,103 @@ class Dirigent:
         emit("delta", {"text": teile_md})
         return teile_md
 
+    # ================================================================ Ablauf "Dirigent"
+    def _formuliere(self, teil, nachricht, zusammenfassung, verlauf, anhang_namen, spez, mehrteilig, zaehler):
+        """Ollama schreibt den Auftrag für die Spezialisten-KI. Gibt (prompt, vorherige_antwort_noetig) zurück."""
+        helfer = self.helfer_spez(max_tokens=1200)
+        letzte_antwort = next((n["content"] for n in reversed(verlauf) if n["role"] == "assistant"), "")
+        teile = []
+        if zusammenfassung:
+            teile.append(f"[Bisheriger Verlauf, verdichtet]\n{zusammenfassung}")
+        if letzte_antwort:
+            teile.append(f"[Letzte Antwort (Auszug)]\n{letzte_antwort[:800]}")
+        if anhang_namen:
+            teile.append("[Anhänge, werden separat mitgeschickt]: " + ", ".join(Path(n).name for n in anhang_namen[:20]))
+        if mehrteilig:
+            teile.append(f"[Diese Teilaufgabe]\n{teil['auftrag']}")
+        teile.append(f"[Ziel-KI]: {spez['name']} – {spez.get('staerken', '')}")
+        teile.append(f"[Anfrage des Nutzers]\n{nachricht if len(nachricht) <= 6000 else nachricht[:6000] + ' …'}")
+        schema = {"type": "object", "properties": {"prompt": {"type": "string"},
+                                                   "vorherige_antwort_noetig": {"type": "boolean"}},
+                  "required": ["prompt", "vorherige_antwort_noetig"]}
+        if helfer:
+            try:
+                a = self.rufe(helfer, FORMULIEREN_SYSTEM, [{"role": "user", "content": "\n\n".join(teile)}],
+                              "formulieren", json_schema=schema, cache=False, zaehler=zaehler)
+                obj = json.loads(a.text)
+                prompt = str(obj.get("prompt") or "").strip()
+                if len(prompt) >= 10:
+                    return prompt, bool(obj.get("vorherige_antwort_noetig"))
+            except Exception:  # noqa: BLE001 – dann eben die Originalanfrage
+                pass
+        return (teil["auftrag"] if mehrteilig else nachricht), bool(letzte_antwort)
+
+    def _ueber_dirigent(self, nr, teil, nachricht, zusammenfassung, verlauf, anhang_text, anhang_namen, opt,
+                        verfuegbar, kontext_zeichen, emit, zaehler, abbruch, mehrteilig=False):
+        """Ollama formuliert → Spezialist arbeitet (Antwort geht an Ollama, nicht direkt an den Nutzer)."""
+        spez = teil["spez"]
+        emit("status", {"text": f"Ollama formuliert den Auftrag für {spez['name']} …"})
+        prompt, braucht_vorher = self._formuliere(teil, nachricht, zusammenfassung, verlauf, anhang_namen, spez,
+                                                  mehrteilig, zaehler)
+        emit("prompt", {"nr": nr, "name": spez["name"], "prompt": prompt})
+        inhalt = prompt
+        if len(nachricht) <= self.cfg["sparen"].get("original_mitsenden_bis_zeichen", 2000) and prompt != nachricht:
+            inhalt += f"\n\n[Originalanfrage des Nutzers]\n{nachricht}"
+        letzte_antwort = next((n["content"] for n in reversed(verlauf) if n["role"] == "assistant"), "")
+        if braucht_vorher and letzte_antwort:
+            grenze = self.cfg["sparen"].get("max_nachricht_zeichen", 6000)
+            inhalt += f"\n\n[Vorherige Antwort]\n{letzte_antwort[:grenze]}"
+        if anhang_text:
+            inhalt += f"\n\n[Anhänge]\n{anhang_text}"
+        a, genutzt = self._mit_ersatz(nr, teil, [{"role": "user", "content": inhalt}], "", opt, verfuegbar,
+                                      kontext_zeichen, emit, zaehler, abbruch, streamen=False)
+        return a, genutzt, prompt
+
+    def _abschluss(self, nachricht, ergebnisse, emit, zaehler) -> str:
+        """Ollama fasst die Antworten der Spezialisten zusammen und gibt aus. Code bleibt exakt erhalten."""
+        bloecke: list[str] = []
+        teile = []
+        for t, a, spez in ergebnisse:
+            geschuetzt, neu = schuetze_code(a.text.strip(), start=len(bloecke) + 1)
+            bloecke += neu
+            teile.append((t, spez, geschuetzt))
+        if len(teile) == 1:
+            inhalt = f"[Anfrage des Nutzers]\n{nachricht}\n\n[Antwort von {teile[0][1]['name']}]\n{teile[0][2]}"
+            roh = ergebnisse[0][1].text.strip()
+        else:
+            inhalt = f"[Anfrage des Nutzers]\n{nachricht}\n\n[Teilergebnisse]\n" + "\n\n".join(
+                f"## {i}. {t['auftrag']} ({spez['name']})\n{g}" for i, (t, spez, g) in enumerate(teile, 1))
+            roh = "\n\n".join(f"## {i}. {t['auftrag']}\n*{spez['name']}*\n\n{a.text.strip()}"
+                               for i, (t, a, spez) in enumerate(ergebnisse, 1))
+        helfer = self.helfer_spez(max_tokens=4096)
+        if not helfer or len(inhalt) > self.cfg["sparen"].get("zusammenfassen_bis_zeichen", 12000):
+            if helfer:
+                emit("hinweis", {"text": "Antwort ist zu lang für die lokale Zusammenfassung – sie kommt unverändert."})
+            emit("delta", {"text": roh})
+            return roh
+        emit("status", {"text": "Ollama fasst zusammen …"})
+        einsetzer = CodeEinsetzer(bloecke)
+
+        def delta(stueck):
+            raus = einsetzer(stueck)
+            if raus:
+                emit("delta", {"text": raus})
+        try:
+            a = self.rufe(helfer, ABSCHLUSS_SYSTEM, [{"role": "user", "content": inhalt}], "zusammenfassen",
+                          on_delta=delta, cache=False, zaehler=zaehler)
+            rest = einsetzer.rest()
+            if rest:
+                emit("delta", {"text": rest})
+            if a.text.strip():
+                return einsetzer.ergebnis.strip()
+        except Abgebrochen:
+            raise
+        except Exception:  # noqa: BLE001
+            pass
+        emit("zuruecksetzen", {})
+        emit("delta", {"text": roh})
+        return roh
+
     def bearbeite(self, nachricht: str, gespraech_id: int | None = None, verlauf: list[dict] | None = None,
                   arbeitsplatz_dateien=(), pc_pfade=(), optionen: dict | None = None, emit=None,
                   abbruch: threading.Event | None = None) -> dict:
@@ -443,6 +611,7 @@ class Dirigent:
         sparen = self.cfg["sparen"]
         opt = {"spezialist": "auto", "strategie": sparen.get("strategie", "sparsam"),
                "zerlegen": sparen.get("zerlegen", True), "dateien_speichern": True, "pc_suche": True,
+               "ablauf": sparen.get("ablauf", "dirigent"),
                **{k: v for k, v in (optionen or {}).items() if v is not None}}
         nachricht = (nachricht or "").strip()
         if not nachricht:
@@ -512,6 +681,7 @@ class Dirigent:
         emit("plan", {
             "begruendung": plan.get("begruendung"), "router": plan.get("router"), "fehler": plan.get("fehler"),
             "pc_suche": plan.get("pc_suche"), "anhaenge": anhang_namen,
+            "ablauf": opt["ablauf"] if self.helfer_spez() else "direkt",
             "teile": [{"nr": i, "kategorie": t["kategorie"], "schwierigkeit": t["schwierigkeit"], "auftrag": t["auftrag"],
                        "spezialist": t["spez"]["id"], "name": t["spez"]["name"], "anbieter": t["spez"]["anbieter"],
                        "modell": t["spez"].get("modell"), "kosten": t["spez"]["kosten"]}
@@ -522,17 +692,34 @@ class Dirigent:
         zusammenfassung, letzte = self._verlauf_kontext(verlauf, emit, zaehler)
 
         # 6) Ausführen
-        vorbereitung = {}
+        #    Ablauf "dirigent": Ollama formuliert den Auftrag → Spezialist antwortet Ollama → Ollama fasst zusammen.
+        #    Ist der Spezialist Ollama selbst, antwortet er direkt (doppelte Runden wären nur langsamer).
+        ueber_ollama = opt["ablauf"] == "dirigent" and self.helfer_spez() is not None
+        extern = lambda t: t["spez"]["anbieter"] != "ollama"  # noqa: E731
+        vorbereitung, schritte = {}, []
         if len(teile) == 1:
             t = teile[0]
             anhang_text, vorbereitung = self._vorbereiten(nachricht, quellen, t["spez"], emit, zaehler, abbruch)
-            inhalt = nachricht + (f"\n\n[Anhänge]\n{anhang_text}" if anhang_text else "")
-            a, spez = self._mit_ersatz(1, t, letzte + [{"role": "user", "content": inhalt}], zusammenfassung, opt,
-                                       verfuegbar, kontext_zeichen, emit, zaehler, abbruch, streamen=True)
-            text, genutzt = a.text, [spez]
+            if ueber_ollama and extern(t):
+                a, spez, prompt = self._ueber_dirigent(1, t, nachricht, zusammenfassung, verlauf, anhang_text,
+                                                       anhang_namen, opt, verfuegbar, kontext_zeichen, emit,
+                                                       zaehler, abbruch)
+                ergebnisse = [(t, a, spez)]
+                schritte.append({"name": spez["name"], "prompt": prompt[:4000], "antwort": a.text[:20000]})
+                text = self._abschluss(nachricht, ergebnisse, emit, zaehler)
+            else:
+                inhalt = nachricht + (f"\n\n[Anhänge]\n{anhang_text}" if anhang_text else "")
+                a, spez = self._mit_ersatz(1, t, letzte + [{"role": "user", "content": inhalt}], zusammenfassung,
+                                           opt, verfuegbar, kontext_zeichen, emit, zaehler, abbruch, streamen=True)
+                ergebnisse, text = [(t, a, spez)], a.text
         else:
             def arbeite(nr_t):
                 nr, t = nr_t
+                if ueber_ollama and extern(t):
+                    a, spez, prompt = self._ueber_dirigent(nr, t, nachricht, zusammenfassung, verlauf, "", [], opt,
+                                                           verfuegbar, 0, emit, zaehler, abbruch, mehrteilig=True)
+                    schritte.append({"name": spez["name"], "prompt": prompt[:4000], "antwort": a.text[:20000]})
+                    return t, a, spez
                 msgs = [{"role": "user", "content": f"{t['auftrag']}\n\n[Gesamtanfrage zur Orientierung]\n{nachricht[:1500]}"}]
                 a, spez = self._mit_ersatz(nr, t, msgs, zusammenfassung, opt, verfuegbar, 0, emit, zaehler,
                                            abbruch, streamen=False)
@@ -541,13 +728,17 @@ class Dirigent:
                 ergebnisse = list(pool.map(arbeite, enumerate(teile, 1)))
             if abbruch and abbruch.is_set():
                 raise Abgebrochen()
-            text = self._zusammenfuehren(nachricht, ergebnisse, emit, zaehler)
-            genutzt = [spez for _, _, spez in ergebnisse]
+            if ueber_ollama:
+                text = self._abschluss(nachricht, ergebnisse, emit, zaehler)
+            else:
+                text = self._zusammenfuehren(nachricht, ergebnisse, emit, zaehler)
+        genutzt = [spez for _, _, spez in ergebnisse]
 
-        # 7) Dateien speichern / merken
+        # 7) Dateien speichern / merken – aus den Originalantworten, damit nichts verloren geht
         gespeichert, fehler = ([], [])
         if opt["dateien_speichern"]:
-            gespeichert, fehler = self.arbeitsplatz.uebernehme_bloecke(text, genutzt[0].get("familie", "ollama"), self.pc)
+            roh = "\n\n".join(a.text for _, a, _ in ergebnisse)
+            gespeichert, fehler = self.arbeitsplatz.uebernehme_bloecke(roh, genutzt[0].get("familie", "ollama"), self.pc)
             if gespeichert or fehler:
                 emit("dateien", {"gespeichert": gespeichert, "fehler": fehler})
 
@@ -559,6 +750,7 @@ class Dirigent:
             "spezialisten": [{"id": s["id"], "name": s["name"], "anbieter": s["anbieter"], "modell": s.get("modell")}
                              for s in genutzt],
             "tokens": zaehler, "dateien": gespeichert, "anhaenge": anhang_namen, "vorbereitung": vorbereitung,
+            "ablauf": "dirigent" if schritte else "direkt", "schritte": schritte,
             "dauer": round(time.time() - start, 1),
         }
         if gespraech_id:

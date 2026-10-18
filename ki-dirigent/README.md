@@ -21,10 +21,33 @@ die dafür nötig sind.
           Gemeinsamer Arbeitsplatz-Ordner auf deinem PC
 ```
 
+## Ablauf einer Aufgabe
+
+```
+Du ──► Ollama empfängt und plant (welche KI, welches Modell, zerlegen?)
+          │
+          ├─► Ollama schreibt für jede KI einen knappen, vollständigen Auftrag
+          │
+          ├─► Claude / Gemini / ChatGPT arbeiten und antworten an Ollama, nicht an dich
+          │
+          └─► Ollama fasst die Antworten zusammen ──► Ausgabe an dich
+```
+
+- In der Oberfläche siehst du bei jeder Antwort zum Aufklappen **den Auftrag, den Ollama geschrieben hat**, und die
+  **Originalantwort der KI**.
+- **Code und Dateien bleiben exakt erhalten.** Bevor Ollama zusammenfasst, werden Codeblöcke durch Platzhalter
+  ersetzt und danach unverändert wieder eingesetzt. Dateien werden aus der Originalantwort gespeichert.
+- **Kann Ollama die Aufgabe selbst lösen**, antwortet es direkt, ohne Umweg.
+- **Sehr lange Antworten** (über `zusammenfassen_bis_zeichen`) kommen unverändert durch, weil ein kleines lokales
+  Modell sie nicht zuverlässig zusammenfassen kann.
+- Mit dem Schalter **„über Ollama“** schaltest du das ab. Dann geht deine Nachricht direkt an die KI und ihre
+  Antwort direkt an dich (`sparen.ablauf: "direkt"`).
+
 ## Warum das Tokens spart
 
 | Maßnahme | Wirkung |
 |---|---|
+| **Ollama schreibt die Aufträge** | Die KI bekommt einen knappen, vollständigen Auftrag statt des ganzen Gesprächsverlaufs. |
 | **Lokale Planung** | Ollama stuft jede Aufgabe ein (Kategorie + Schwierigkeit 1–3). Das kostet nichts. |
 | **Günstigster passender Spezialist** | Strategie `sparsam`: Es gewinnt der billigste Spezialist, dessen Niveau reicht. Einfaches bleibt bei Ollama. |
 | **Deine Programme zuerst** | Claude Code, Gemini CLI und Codex laufen über dein Abo. Die APIs (pro Token bezahlt) sind nur Reserve. |

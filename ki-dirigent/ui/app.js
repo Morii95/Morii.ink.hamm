@@ -273,8 +273,11 @@ function zeigePlan(a, p) {
   const kopf = el("div", { class: "weg-zeile" },
     el("span", { class: "pille lokal", title: "plant lokal" }, "Ollama", p.router ? el("span", { style: "color:var(--leise)" }, "· " + p.router) : null),
     el("span", { class: "pfeil" }, "→"));
-  if (p.teile.length === 1) kopf.append(pilleFuer(p.teile[0]), el("span", {}, `${p.teile[0].kategorie}${p.teile[0].schwierigkeit ? " · Stufe " + p.teile[0].schwierigkeit : ""}`));
+  if (p.teile.length === 1) kopf.append(pilleFuer(p.teile[0]));
   else kopf.append(el("span", {}, `${p.teile.length} Teilaufgaben`));
+  if (p.ablauf === "dirigent" && p.teile.some(t => t.anbieter !== "ollama"))
+    kopf.append(el("span", { class: "pfeil" }, "→"), el("span", { class: "pille lokal", title: "Ollama fasst zusammen" }, "Ollama", el("span", { style: "color:var(--leise)" }, "· fasst zusammen")));
+  if (p.teile.length === 1) kopf.append(el("span", {}, `${p.teile[0].kategorie}${p.teile[0].schwierigkeit ? " · Stufe " + p.teile[0].schwierigkeit : ""}`));
   a.weg.append(kopf);
   if (p.begruendung) a.weg.append(el("div", {}, p.begruendung));
   if (p.fehler) a.weg.append(el("div", { class: "weg-zeile" }, el("span", { class: "pille warn" }, "Hinweis"), p.fehler));
@@ -287,12 +290,23 @@ function zeigePlan(a, p) {
   }
   a.status = el("div", { class: "status-text" }); a.weg.append(a.status);
 }
+function aufklapper(titel, text, alsMarkdown) {
+  const inhalt = el("div", { class: alsMarkdown ? "inhalt aufklapp-inhalt" : "aufklapp-inhalt" });
+  if (alsMarkdown) inhalt.innerHTML = markdown(text); else inhalt.textContent = text;
+  return el("details", { class: "aufklapp" }, el("summary", {}, titel), inhalt);
+}
+
 function zeigeWegAusMeta(a, meta) {
   if (!meta || !meta.spezialisten) return;
   const kopf = el("div", { class: "weg-zeile" }, el("span", { class: "pille lokal" }, "Ollama", meta.plan?.router ? el("span", { style: "color:var(--leise)" }, "· " + meta.plan.router) : null), el("span", { class: "pfeil" }, "→"));
   for (const s of meta.spezialisten) kopf.append(pilleFuer(s));
   a.weg.append(kopf);
+  if (meta.ablauf === "dirigent") kopf.append(el("span", { class: "pfeil" }, "→"), el("span", { class: "pille lokal" }, "Ollama", el("span", { style: "color:var(--leise)" }, "· fasst zusammen")));
   if (meta.plan?.pc_suche) a.weg.append(el("div", {}, "🔎 PC-Suche: " + meta.plan.pc_suche));
+  for (const s of meta.schritte || []) {
+    a.weg.append(aufklapper(`📝 Ollama → ${s.name}: Auftrag`, s.prompt, false));
+    a.weg.append(aufklapper(`💬 ${s.name} → Ollama: Antwort`, s.antwort, true));
+  }
 }
 function zeigeFuss(a, meta) {
   a.fuss.innerHTML = "";
@@ -349,8 +363,12 @@ async function sende(text) {
       case "vorbereitung":
         a.weg.append(el("div", {}, `🧹 Ollama hat die Daten vorbereitet: ${zahl(d.vorher_zeichen)} → ${zahl(d.nachher_zeichen)} Zeichen`));
         break;
+      case "prompt":
+        a.weg.append(aufklapper(`📝 Ollama → ${d.name}: Auftrag`, d.prompt, false));
+        break;
       case "schritt":
         if (a.status) a.status.textContent = d.status === "laeuft" ? `${d.name} arbeitet …` : "";
+        if (!a.schritte[d.nr] && d.status === "fertig" && d.text) a.weg.append(aufklapper(`💬 ${d.name} → Ollama: Antwort`, d.text, true));
         if (a.schritte[d.nr] && d.status === "fertig") {
           const z = a.schritte[d.nr];
           z.firstChild.replaceWith(el("span", {}, "✓"));
@@ -392,6 +410,7 @@ async function sende(text) {
         optionen: {
           spezialist: $("#spezialist").value, strategie: $("#strategie").value,
           zerlegen: $("#zerlegen").checked, pc_suche: $("#pcsuche").checked, dateien_speichern: $("#speichern").checked,
+          ablauf: $("#ueberollama").checked ? "dirigent" : "direkt",
         },
       }),
     });

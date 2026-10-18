@@ -1,6 +1,7 @@
 """Tests ohne echte KI: python -m unittest discover -s tests"""
 import json
 import os
+import re
 import stat
 import sys
 import tempfile
@@ -272,11 +273,18 @@ def fake_chat_fabrik(plan, fehlschlag=()):
 
     def chat(cfg, spez, system, nachrichten, on_delta=None, json_schema=None, **kw):
         aufrufe.append((spez["id"], system, nachrichten))
+        if json_schema and "prompt" in json_schema.get("properties", {}):  # Ollama formuliert den Auftrag
+            return Antwort(json.dumps({"prompt": "AUFTRAG VON OLLAMA: " + nachrichten[-1]["content"][-40:],
+                                       "vorherige_antwort_noetig": False}), 20, 10, "ollama", spez["modell"])
         if json_schema:
             return Antwort(json.dumps(plan), 30, 10, "ollama", spez["modell"])
         if spez["id"] in fehlschlag:
             raise AnbieterFehler("kaputt")
-        text = f"Antwort von {spez['id']}"
+        if spez["id"] == "helfer" and "[Anfrage des Nutzers]" in nachrichten[-1]["content"]:  # Ollama fasst zusammen
+            platzhalter = " ".join(sorted(set(re.findall(r"\[\[CODE_\d+\]\]", nachrichten[-1]["content"]))))
+            text = f"ZUSAMMENFASSUNG {platzhalter}".strip()
+        else:
+            text = f"Antwort von {spez['id']}"
         if on_delta:
             on_delta(text)
         return Antwort(text, 100, 20, spez["anbieter"], spez.get("modell", ""))
@@ -297,16 +305,16 @@ class DirigentTest(unittest.TestCase):
         plan = {"begruendung": "", "teilaufgaben": [{"kategorie": "code", "schwierigkeit": 3, "spezialist": "lokal", "auftrag": "x"}]}
         d, aufrufe = self.neu(plan, fehlschlag=("claude-sonnet-api",))
         ev = []
-        r = d.bearbeite("Komplexer Code", emit=lambda t, x: ev.append((t, x)))
+        r = d.bearbeite("Komplexer Code", emit=lambda t, x: ev.append((t, x)), optionen={"ablauf": "direkt"})
         self.assertEqual(r["text"], "Antwort von claude-opus-api")
         self.assertIn("ersatz", [t for t, _ in ev])
 
     def test_cache_spart_zweiten_aufruf(self):
         plan = {"begruendung": "", "teilaufgaben": [{"kategorie": "text", "schwierigkeit": 2, "spezialist": "lokal", "auftrag": "x"}]}
         d, aufrufe = self.neu(plan)
-        d.bearbeite("Gleiche Frage")
+        d.bearbeite("Gleiche Frage", optionen={"ablauf": "direkt"})
         n = len([a for a in aufrufe if a[0] == "claude-haiku-api"])
-        r = d.bearbeite("Gleiche Frage")
+        r = d.bearbeite("Gleiche Frage", optionen={"ablauf": "direkt"})
         self.assertEqual(len([a for a in aufrufe if a[0] == "claude-haiku-api"]), n)
         self.assertEqual(r["meta"]["tokens"].get("cache_treffer"), 1)
 
@@ -326,7 +334,7 @@ class DirigentTest(unittest.TestCase):
         verlauf = []
         for i in range(10):
             verlauf += [{"role": "user", "content": f"Frage {i} " + "x" * 800}, {"role": "assistant", "content": "y" * 800}]
-        d.bearbeite("Und jetzt?", verlauf=verlauf)
+        d.bearbeite("Und jetzt?", verlauf=verlauf, optionen={"ablauf": "direkt"})
         self.assertTrue(any(a[0] == "helfer" for a in aufrufe))
         haupt = [a for a in aufrufe if a[0] == "claude-haiku-api"][-1]
         self.assertIn("verdichtet", haupt[1])
@@ -336,7 +344,7 @@ class DirigentTest(unittest.TestCase):
         (self.tmp / "gross.txt").write_text("Unwichtig. " * 5000 + "WICHTIG: Termin am 5. Mai.", encoding="utf-8")
         plan = {"begruendung": "", "teilaufgaben": [{"kategorie": "text", "schwierigkeit": 2, "spezialist": "lokal", "auftrag": "x"}]}
         d, aufrufe = self.neu(plan)
-        r = d.bearbeite("Wann ist der Termin?", pc_pfade=[str(self.tmp / "gross.txt")])
+        r = d.bearbeite("Wann ist der Termin?", pc_pfade=[str(self.tmp / "gross.txt")], optionen={"ablauf": "direkt"})
         self.assertGreater(r["meta"]["vorbereitung"]["vorher_zeichen"], r["meta"]["vorbereitung"]["nachher_zeichen"])
         haupt = [a for a in aufrufe if a[0] == "claude-haiku-api"][-1]
         self.assertLess(len(haupt[2][-1]["content"]), 20000)
@@ -347,6 +355,76 @@ class DirigentTest(unittest.TestCase):
         r = d.bearbeite("Hallo")
         self.assertEqual(r["meta"]["spezialisten"][0]["anbieter"], "anthropic")
         self.assertIn("Regeln", r["meta"]["plan"]["fehler"])
+
+
+class DirigentAblaufTest(unittest.TestCase):
+    """Ollama empfängt → formuliert Auftrag → KI antwortet Ollama → Ollama fasst zusammen → Ausgabe."""
+
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp())
+        os.environ.update(ANTHROPIC_API_KEY="a", OPENAI_API_KEY="", GEMINI_API_KEY="")
+        self.cfg = test_config(self.tmp)
+
+    def neu(self, plan, antwort_text=None):
+        chat, aufrufe = fake_chat_fabrik(plan)
+        if antwort_text is not None:
+            innen = chat
+
+            def chat(cfg, spez, system, nachrichten, on_delta=None, json_schema=None, **kw):  # noqa: F811
+                if spez["anbieter"] == "anthropic":
+                    aufrufe.append((spez["id"], system, nachrichten))
+                    return Antwort(antwort_text, 50, 50, "anthropic", spez["modell"])
+                return innen(cfg, spez, system, nachrichten, on_delta=on_delta, json_schema=json_schema, **kw)
+        return Dirigent(self.cfg, chat_fn=chat, modelle_fn=lambda c: ["qwen2.5:7b", "qwen2.5-coder:7b"]), aufrufe
+
+    def test_ablauf_ueber_ollama(self):
+        plan = {"begruendung": "", "teilaufgaben": [{"kategorie": "code", "schwierigkeit": 3, "spezialist": "lokal", "auftrag": "x"}]}
+        code = "```datei:projekt/a.py\nprint('exakt so')\n```"
+        d, aufrufe = self.neu(plan, antwort_text=f"Erklärung.\n\n{code}\n\nEnde.")
+        ev = []
+        r = d.bearbeite("Schreib mir ein Programm", emit=lambda t, x: ev.append((t, x)))
+        reihenfolge = [a[0] for a in aufrufe]
+        self.assertEqual(reihenfolge, ["router", "helfer", "claude-sonnet-api", "helfer"])
+        an_claude = aufrufe[2][2]
+        self.assertEqual(len(an_claude), 1)  # nur der von Ollama formulierte Auftrag, kein Verlauf
+        self.assertTrue(an_claude[0]["content"].startswith("AUFTRAG VON OLLAMA"))
+        zusammenfassen = aufrufe[3][2][-1]["content"]
+        self.assertIn("[[CODE_1]]", zusammenfassen)  # Code wird vor Ollama geschützt …
+        self.assertNotIn("exakt so", zusammenfassen)
+        self.assertTrue(r["text"].startswith("ZUSAMMENFASSUNG"))
+        self.assertIn(code, r["text"])  # … und unverändert wieder eingesetzt
+        self.assertEqual(r["meta"]["dateien"], ["projekt/a.py"])
+        self.assertEqual(r["meta"]["ablauf"], "dirigent")
+        self.assertIn("prompt", [t for t, _ in ev])
+        self.assertEqual("".join(x["text"] for t, x in ev if t == "delta").strip(), r["text"])
+
+    def test_vergessener_codeblock_wird_angehaengt(self):
+        from dirigent.dirigent import CodeEinsetzer
+        e = CodeEinsetzer(["```py\na\n```", "```py\nb\n```"])
+        raus = e("Text [[CO") + e("DE_2]] weiter") + e.rest()
+        self.assertIn("```py\nb\n```", raus)
+        self.assertTrue(raus.rstrip().endswith("```py\na\n```"))  # nicht benutzt → angehängt
+        self.assertNotIn("[[", raus)
+
+    def test_lokale_antwort_ohne_umweg(self):
+        plan = {"begruendung": "", "teilaufgaben": [{"kategorie": "chat", "schwierigkeit": 1, "spezialist": "lokal", "auftrag": "x"}]}
+        d, aufrufe = self.neu(plan)
+        r = d.bearbeite("Hallo")
+        self.assertEqual([a[0] for a in aufrufe], ["router", "lokal"])
+        self.assertEqual(r["text"], "Antwort von lokal")
+
+    def test_mehrere_teile_ollama_fasst_zusammen(self):
+        plan = {"begruendung": "", "teilaufgaben": [
+            {"kategorie": "code", "schwierigkeit": 3, "spezialist": "lokal", "auftrag": "Code"},
+            {"kategorie": "chat", "schwierigkeit": 1, "spezialist": "lokal", "auftrag": "Gruß"}]}
+        d, aufrufe = self.neu(plan)
+        r = d.bearbeite("Code und Gruß")
+        ids = [a[0] for a in aufrufe]
+        self.assertIn("claude-sonnet-api", ids)
+        self.assertIn("lokal", ids)
+        self.assertEqual(ids[-1], "helfer")
+        self.assertTrue(r["text"].startswith("ZUSAMMENFASSUNG"))
+        self.assertEqual(len(r["meta"]["schritte"]), 1)  # nur der externe Teil lief über den Umweg
 
 
 class ServerTest(unittest.TestCase):

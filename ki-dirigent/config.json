@@ -54,6 +54,7 @@
   },
 
   "sparen": {
+    "ablauf": "dirigent",
     "strategie": "sparsam",
     "zerlegen": true,
     "max_teilaufgaben": 4,
@@ -65,6 +66,8 @@
     "vorbereiten_ab_zeichen": 12000,
     "vorbereiten_bis_zeichen": 250000,
     "zusammenfuehren_lokal_bis_zeichen": 8000,
+    "original_mitsenden_bis_zeichen": 2000,
+    "zusammenfassen_bis_zeichen": 12000,
     "weg_in_kompat_antwort": true
   },
 
