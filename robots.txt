@@ -1,4 +1,4 @@
-# robots.txt – Morii Ink Hamm (https://mori-ink.de)
+# robots.txt – Mori Ink Hamm (https://mori-ink.de)
 
 # Standard: alle Bots dürfen alles crawlen
 User-agent: *

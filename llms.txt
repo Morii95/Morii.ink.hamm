@@ -1,0 +1,16 @@
+# Mori Ink Hamm
+
+> Tattoo- und Piercing-Studio in Hamm (Ahlener Straße 96, 59073 Hamm). Tattoo Artist Tolga Altunkaya sticht Fineline, Blackwork, Cover-ups und individuelle Designs; Piercerin Ela (rebEla Piercing) bietet Piercings mit Beratung zu Platzierung, Schmuck und Heilung. Geöffnet Mo–Sa 10:00–18:00, Termine nach Vereinbarung. Für Hamm, Ahlen und Umgebung.
+
+## Studio
+
+- [Startseite](https://mori-ink.de/): Über Tolga, Galerie, Piercing, Team und Terminbuchung
+- [Termin buchen](https://morii-ink-studio.vercel.app/buchen): Online-Terminbuchung bei Tolga, Ela oder Lou
+- [Instagram @mori.ink.hamm](https://www.instagram.com/mori.ink.hamm): aktuelle Arbeiten
+
+## Kontakt
+
+- Telefon: +49 173 5979520
+- E-Mail: mori.ink.hamm@gmail.com
+- [Impressum](https://mori-ink.de/impressum.html)
+- [Datenschutz](https://mori-ink.de/datenschutz.html)

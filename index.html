@@ -6,7 +6,6 @@
 
     <title>Tattoo &amp; Piercing Studio Hamm | Mori Ink</title>
     <meta name="description" content="Dein Top Tattoo Artist in Hamm. Tolga Altunkaya bietet Fineline, Blackwork und individuelle Designs. Jetzt Piercing- oder Tattoo-Termin in Hamm buchen!">
-    <meta name="keywords" content="Tattoo Hamm, Tattoo Studio Hamm, Tätowierer Hamm, Piercing Hamm, Fineline Tattoo Hamm, Mori Ink">
     <meta name="robots" content="index, follow">
     <meta name="author" content="Mori Ink Hamm – Tolga Altunkaya">
     <meta name="theme-color" content="#050505">
@@ -160,7 +159,7 @@
                 </dl>
 
                 <p class="fineprint">Du suchst ein Tattoo Studio in Hamm? Bei
-                    Mori Ink in 59073 Hamm, Ahlener Straße, berate ich dich
+                    Mori Ink in der Ahlener Straße 96, 59073 Hamm, berate ich dich
                     persönlich zu deinem nächsten Projekt – Fineline, Blackwork
                     oder Cover-up. Für Hamm, Ahlen und Umgebung.</p>
             </div>
@@ -177,16 +176,16 @@
 
             <div class="gallery">
                 <img src="assets/tattoo-fineline-hamm-1.webp"
-                     alt="Fineline Tattoo von Mori Ink Hamm"
+                     alt="Tattoo Artist bei Mori Ink Hamm sticht mit Handschuhen und abgedecktem Arbeitsplatz ein Tattoo am Arm"
                      width="825" height="1100" loading="lazy">
                 <img src="assets/gallery-2.webp"
-                     alt="Tattoo-Arbeit von Mori Ink Hamm"
+                     alt="Nordisches Blackwork-Tattoo am Oberarm: verschlungene Drachenschlange mit zwei Äxten, gestochen bei Mori Ink Hamm"
                      width="619" height="1100" loading="lazy">
                 <img src="assets/gallery-3.webp"
-                     alt="Individuelles Tattoo aus dem Studio Mori Ink Hamm"
+                     alt="Fineline-Tattoo am Unterschenkel: lachender Toast im Toaster mit Schriftzug „TOAST“, gestochen bei Mori Ink Hamm"
                      width="880" height="1100" loading="lazy">
                 <img src="assets/gallery-4.webp"
-                     alt="Tätowierung von Mori Ink Hamm"
+                     alt="Linework-Tattoo am Unterarm: Kreuz mit Rosen und Dornenranke, gestochen bei Mori Ink Hamm"
                      width="619" height="1100" loading="lazy">
             </div>
 
@@ -211,7 +210,7 @@
             <div class="artist">
                 <img class="artist-photo"
                      src="assets/logo-piercingstudio-ela-hamm.webp"
-                     alt="Ela, Piercerin bei Mori Ink Hamm"
+                     alt="rebEla Piercing – Logo von Piercerin Ela bei Mori Ink Hamm"
                      width="150" height="150" loading="lazy">
                 <h3>Ela</h3>
                 <p class="muted"><strong>Präzision</strong> und
@@ -318,7 +317,7 @@
 
             <p class="booking-note">Lieber direkt sprechen? Schreib uns auf
                 <a href="https://www.instagram.com/mori.ink.hamm" target="_blank" rel="noopener noreferrer">Instagram</a>
-                oder ruf an.</p>
+                oder <a href="tel:+491735979520">ruf an</a>.</p>
         </div>
     </section>
 
@@ -369,6 +368,41 @@
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
+  "@graph": [
+  {
+  "@type": "WebSite",
+  "@id": "https://mori-ink.de/#website",
+  "url": "https://mori-ink.de/",
+  "name": "Mori Ink Hamm",
+  "inLanguage": "de-DE",
+  "publisher": { "@id": "https://mori-ink.de/#studio" }
+  },
+  {
+  "@type": "Person",
+  "@id": "https://mori-ink.de/#tolga",
+  "name": "Tolga Altunkaya",
+  "jobTitle": "Tattoo Artist",
+  "image": "https://mori-ink.de/assets/d563ae74-4c27-47ce-9aa0-fae8539775c4.webp",
+  "worksFor": { "@id": "https://mori-ink.de/#studio" }
+  },
+  {
+  "@type": "Person",
+  "@id": "https://mori-ink.de/#ela",
+  "name": "Ela",
+  "jobTitle": "Piercerin",
+  "sameAs": ["https://www.instagram.com/rebela.piercing/"],
+  "worksFor": { "@id": "https://mori-ink.de/#studio" }
+  },
+  {
+  "@type": "Person",
+  "@id": "https://mori-ink.de/#lou",
+  "name": "Lou",
+  "jobTitle": "Tattoo-Praktikantin",
+  "image": "https://mori-ink.de/assets/lou.webp",
+  "sameAs": ["https://www.instagram.com/tattoo.noproblemo/"],
+  "worksFor": { "@id": "https://mori-ink.de/#studio" }
+  },
+  {
   "@type": "TattooParlor",
   "@id": "https://mori-ink.de/#studio",
   "name": "Mori Ink Hamm",
@@ -379,7 +413,26 @@
   "priceRange": "€€",
   "telephone": "+49 173 5979520",
   "email": "mori.ink.hamm@gmail.com",
-  "founder": { "@type": "Person", "name": "Tolga Altunkaya" },
+  "founder": { "@id": "https://mori-ink.de/#tolga" },
+  "employee": [
+    { "@id": "https://mori-ink.de/#tolga" },
+    { "@id": "https://mori-ink.de/#ela" },
+    { "@id": "https://mori-ink.de/#lou" }
+  ],
+  "hasMap": "https://www.google.com/maps/search/?api=1&query=Mori+Ink+Hamm+Ahlener+Stra%C3%9Fe+96+59073+Hamm",
+  "makesOffer": [
+    { "@type": "Offer", "itemOffered": { "@type": "Service", "name": "Tattoo (Fineline, Blackwork, Cover-up, individuelle Designs)" } },
+    { "@type": "Offer", "itemOffered": { "@type": "Service", "name": "Piercing inklusive Beratung zu Platzierung, Schmuck und Heilung" } }
+  ],
+  "potentialAction": {
+    "@type": "ReserveAction",
+    "target": {
+      "@type": "EntryPoint",
+      "urlTemplate": "https://morii-ink-studio.vercel.app/buchen",
+      "actionPlatform": ["https://schema.org/DesktopWebPlatform", "https://schema.org/MobileWebPlatform"]
+    },
+    "result": { "@type": "Reservation", "name": "Tattoo- oder Piercing-Termin" }
+  },
   "address": {
     "@type": "PostalAddress",
     "streetAddress": "Ahlener Straße 96",
@@ -396,6 +449,8 @@
     "opens": "10:00",
     "closes": "18:00"
   }]
+  }
+  ]
 }
 </script>
 </body>
